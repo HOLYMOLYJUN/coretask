@@ -1,8 +1,8 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { qk } from '@/lib/query'
+import { qk, queryClient } from '@/lib/query'
 
 /**
  * 세션만 Context 로 둔다 (08-FRONTEND §3.1).
@@ -21,13 +21,32 @@ const Ctx = createContext<SessionValue>({ session: null, userId: null, loading: 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const prevUser = useRef<string | null | undefined>(undefined)
 
   useEffect(() => {
+    /**
+     * 🔴 계정이 바뀌면 캐시를 무조건 비운다.
+     *
+     * 쿼리 키에 userId 가 들어가지 않으므로(qk.myTasks 등),
+     * 로그아웃 버튼을 거치지 않고 /login 에서 바로 다른 계정으로 들어오면
+     * 이전 사용자의 leadIds·업무·알림이 새 계정에 그대로 보인다.
+     * 실제로 Member 에게 이전 Admin 세션의 "완료 확정" 버튼이 노출됐다 (2026-07-27).
+     * AccountMenu 의 clear 는 정상 로그아웃 경로만 덮는다 — 여기가 최종 방어선이다.
+     */
+    const apply = (s: Session | null) => {
+      const uid = s?.user.id ?? null
+      if (prevUser.current !== undefined && prevUser.current !== uid) {
+        queryClient.clear()
+      }
+      prevUser.current = uid
+      setSession(s)
+    }
+
     supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
+      apply(data.session)
       setLoading(false)
     })
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => apply(s))
     return () => sub.subscription.unsubscribe()
   }, [])
 
