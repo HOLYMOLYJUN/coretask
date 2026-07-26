@@ -45,5 +45,19 @@ export default defineConfig({
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // 벤더 분리 — 앱 코드만 바뀌는 배포에서 사용자가 다시 받는 양을 줄인다.
+        // autoUpdate PWA 로 매일 쓰는 도구라, 정확한 청크 크기보다
+        // "무엇이 함께 무효화되는가" 가 중요하다.
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router'],
+          data: ['@supabase/supabase-js', '@tanstack/react-query'],
+          dnd: ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+        },
+      },
+    },
+  },
   server: { port: 3000 },
 })
