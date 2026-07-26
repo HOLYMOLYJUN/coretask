@@ -11,6 +11,7 @@ import { BoardPage } from '@/features/board/board-page'
 import { DashboardPage } from '@/features/dashboard/dashboard-page'
 import { MyTasksPage } from '@/features/my-tasks/my-tasks-page'
 import { TaskPage, TaskPanel } from '@/features/task/task-detail'
+import { NotificationsPage } from '@/features/notifications/notifications-page'
 import { Placeholder } from '@/components/placeholder'
 
 /**
@@ -42,7 +43,7 @@ export function AppRoutes() {
               <Route path="/tasks" element={<MyTasksPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/projects/:projectId/board" element={<BoardPage />} />
-              <Route path="/notifications" element={<Placeholder title="알림" />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/settings" element={<Placeholder title="설정" />} />
               <Route path="/more" element={<Placeholder title="더보기" />} />
 

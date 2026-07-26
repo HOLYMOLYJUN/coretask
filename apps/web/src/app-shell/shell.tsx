@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabase'
 import { qk } from '@/lib/query'
 import { useSession } from '@/features/auth/session'
 import { useProjects } from '@/features/projects/use-projects'
+import { useUnreadCount } from '@/features/notifications/use-notifications'
 import { AccountMenu } from './account-menu'
 import { cn } from '@/lib/cn'
 
@@ -46,6 +47,7 @@ const navItem =
 
 export function AppShell() {
   const { data: count = 0 } = useMyTaskCount()
+  const { data: unread = 0 } = useUnreadCount()
   const { data: projects = [] } = useProjects()
   const loc = useLocation()
 
@@ -119,10 +121,20 @@ export function AppShell() {
           <div className="flex-1" />
           <NavLink
             to="/notifications"
-            className="rounded-full p-2 text-fg-muted transition-colors hover:bg-bg-subtle hover:text-fg"
-            aria-label="알림"
+            className="relative rounded-full p-2 text-fg-muted transition-colors hover:bg-bg-subtle hover:text-fg"
+            aria-label={unread > 0 ? `알림 ${unread}개` : '알림'}
           >
-            <Bell size={18} strokeWidth={1.75} />
+            {/* 미읽음 = 주의를 끌어야 하는 것 → fill (09 §3.2) */}
+            <Bell
+              size={18}
+              strokeWidth={unread > 0 ? 1.5 : 1.75}
+              fill={unread > 0 ? 'currentColor' : 'none'}
+            />
+            {unread > 0 && (
+              <span className="num absolute -right-0.5 -top-0.5 rounded-full bg-primary px-1 text-badge text-white">
+                {unread > 20 ? '20+' : unread}
+              </span>
+            )}
           </NavLink>
           <AccountMenu />
         </header>
@@ -141,7 +153,18 @@ export function AppShell() {
           label="홈"
         />
         <MobileTab to="/tasks" icon={<ListChecks size={20} strokeWidth={1.75} />} label="내 업무" badge={count} />
-        <MobileTab to="/notifications" icon={<Bell size={20} strokeWidth={1.75} />} label="알림" />
+        <MobileTab
+          to="/notifications"
+          icon={
+            <Bell
+              size={20}
+              strokeWidth={unread > 0 ? 1.5 : 1.75}
+              fill={unread > 0 ? 'currentColor' : 'none'}
+            />
+          }
+          label="알림"
+          badge={unread}
+        />
         <MobileTab to="/more" icon={<Smartphone size={20} strokeWidth={1.75} />} label="더보기" />
       </nav>
     </div>
