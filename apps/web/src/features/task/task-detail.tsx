@@ -1,10 +1,18 @@
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { X, ArrowLeft } from 'lucide-react'
+import { X, ArrowLeft, Check, CornerUpLeft } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { qk } from '@/lib/query'
-import { StatusBadge } from '@/components/status'
-import { Spinner, Badge } from '@/components/ui'
+import { useSession } from '@/features/auth/session'
+import {
+  useLeadProjectIds,
+  useChangeStatus,
+  useRejectTask,
+  nextAction,
+} from '@/features/my-tasks/use-my-tasks'
+import { StatusBadge, DelayedBadge } from '@/components/status'
+import { Spinner, Badge, Button } from '@/components/ui'
 import { dueLabel, dueShort, elapsedLabel } from '@/lib/date'
 
 /**
@@ -28,9 +36,19 @@ function useTask(taskId: string) {
 }
 
 function Body({ taskId }: { taskId: string }) {
+  const { userId } = useSession()
   const { data: task, isPending } = useTask(taskId)
+  const { data: leadIds } = useLeadProjectIds()
+  const change = useChangeStatus()
+  const reject = useRejectTask()
+  const [rejecting, setRejecting] = useState(false)
+
   if (isPending) return <Spinner />
   if (!task) return <p className="p-4 text-xs text-fg-muted">업무를 찾을 수 없어요</p>
+
+  const isLead = !!task.project_id && !!leadIds?.has(task.project_id)
+  const isMine = task.assignee_id === userId
+  const myAction = isMine && task.status ? nextAction(task.status) : null
 
   return (
     <div className="flex flex-col gap-4">
@@ -38,9 +56,11 @@ function Body({ taskId }: { taskId: string }) {
 
       <div className="flex flex-wrap items-center gap-3">
         {task.status && <StatusBadge status={task.status} size="md" />}
-        {(task.status === 'in_progress' || task.status === 'in_review') && task.status_changed_at && (
-          <span className="text-xs text-fg-muted">{elapsedLabel(task.status_changed_at)}</span>
-        )}
+        {(task.status === 'in_progress' || task.status === 'in_review') &&
+          task.status_changed_at && (
+            <span className="text-xs text-fg-muted">{elapsedLabel(task.status_changed_at)}</span>
+          )}
+        {(task.is_stale || task.is_overdue) && <DelayedBadge />}
         {task.due_date && (
           <>
             <span className="text-xs text-fg-muted">{dueShort(task.due_date)}</span>
@@ -50,6 +70,43 @@ function Body({ taskId }: { taskId: string }) {
           </>
         )}
       </div>
+
+      {/* ── 리뷰 처리 — Lead 에게만 렌더된다 (US-503).
+             권한 없는 액션은 비활성 버튼조차 두지 않는다 (PRD §4) ── */}
+      {isLead && task.status === 'in_review' && (
+        <div className="flex gap-2">
+          <Button
+            variant="primary"
+            className="flex-1"
+            disabled={change.isPending}
+            onClick={() => change.mutate({ taskId, status: 'done' })}
+          >
+            <Check size={18} strokeWidth={2} />
+            완료 확정
+          </Button>
+          <Button className="flex-1" onClick={() => setRejecting(true)}>
+            <CornerUpLeft size={18} strokeWidth={1.75} />
+            반려
+          </Button>
+        </div>
+      )}
+
+      {/* 담당자 본인의 다음 행동 하나 */}
+      {myAction && task.status !== 'in_review' && (
+        <Button
+          variant="secondary"
+          className="border-fg font-semibold"
+          disabled={change.isPending}
+          onClick={() => change.mutate({ taskId, status: myAction.to })}
+        >
+          {myAction.label}
+        </Button>
+      )}
+      {isMine && !isLead && task.status === 'in_review' && (
+        <p className="rounded-md border border-border bg-bg-subtle px-3 py-2 text-center text-xs text-fg-muted">
+          Lead 확인 대기중
+        </p>
+      )}
 
       <dl className="grid grid-cols-[80px_1fr] gap-y-2 text-xs">
         <dt className="text-fg-muted">프로젝트</dt>
@@ -61,13 +118,75 @@ function Body({ taskId }: { taskId: string }) {
       </dl>
 
       {task.description && (
-        <p className="border-t border-border pt-3 text-xs whitespace-pre-wrap">{task.description}</p>
+        <p className="border-t border-border pt-3 text-xs whitespace-pre-wrap">
+          {task.description}
+        </p>
       )}
 
       <p className="border-t border-border pt-3 text-xs text-fg-subtle">
         댓글과 활동 로그는 M3 에서 붙습니다 (US-602 · US-603)
       </p>
+
+      {rejecting && (
+        <RejectDialog
+          busy={reject.isPending}
+          onConfirm={(reason) => {
+            reject.mutate(
+              { taskId, reason },
+              { onSuccess: () => setRejecting(false) },
+            )
+          }}
+          onClose={() => setRejecting(false)}
+        />
+      )}
     </div>
+  )
+}
+
+/**
+ * 반려 사유는 필수다 (US-503 AC-3).
+ * 사유 없는 반려는 반드시 "왜 반려됐지?" 라는 카톡을 부른다 —
+ * 입력 한 번의 비용으로 대화 하나를 도구 안에 붙잡아 두는 거래다.
+ */
+function RejectDialog({
+  busy,
+  onConfirm,
+  onClose,
+}: {
+  busy: boolean
+  onConfirm: (reason: string) => void
+  onClose: () => void
+}) {
+  const [reason, setReason] = useState('')
+
+  return (
+    <>
+      <div className="fixed inset-0 z-60 bg-[rgba(15,23,42,.32)]" onClick={onClose} />
+      <div className="fixed left-1/2 top-1/2 z-70 w-[min(92vw,24rem)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border-strong bg-bg p-5">
+        <h3 className="text-base font-semibold">왜 되돌리나요?</h3>
+        <textarea
+          autoFocus
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={3}
+          className="mt-3 w-full rounded-md border border-border bg-bg px-3 py-2 text-xs placeholder:text-fg-subtle focus:border-primary focus:outline-none"
+          placeholder="예: 카카오 로그인이 빠져 있어요"
+        />
+        <p className="mt-1.5 text-badge text-fg-subtle">담당자에게 전달되고 댓글로 남습니다</p>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>
+            취소
+          </Button>
+          <Button
+            variant="primary"
+            disabled={!reason.trim() || busy}
+            onClick={() => onConfirm(reason.trim())}
+          >
+            반려하기
+          </Button>
+        </div>
+      </div>
+    </>
   )
 }
 
