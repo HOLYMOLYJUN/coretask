@@ -1,0 +1,134 @@
+@import 'tailwindcss';
+
+/* ────────────────────────────────────────────────────────────
+   Pretendard — 다이나믹 서브셋 (D-054 · D-056)
+
+   전체본 PretendardVariable.woff2 는 2MB 다 (한글 11,172자 전부).
+   다이나믹 서브셋은 92개 조각(평균 31KB)으로 나뉘어 있고,
+   브라우저가 unicode-range 를 보고 실제로 화면에 뜬 글자의 조각만 받는다.
+   가변 폰트 축(font-weight 45~920)은 그대로 유지된다.
+
+   자체 호스팅이다 — npm 패키지에서 오지만 Vite 가 dist 로 복사한다.
+   ──────────────────────────────────────────────────────────── */
+@import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
+
+/* ────────────────────────────────────────────────────────────
+   토큰 — docs/09-DESIGN-SYSTEM.md
+   기본 팔레트(red-500 등)를 직접 쓰지 않는다. 여기 있는 것만 쓴다.
+   ──────────────────────────────────────────────────────────── */
+@theme {
+  /* 바탕 — 순수 회색이 아니라 블루로 살짝 기울인 중성색 */
+  --color-bg: #ffffff;
+  --color-bg-subtle: #f7f9fc;
+  --color-bg-sunken: #f1f5f9;
+
+  /* 선 — shadow 대신 이것으로 층을 만든다 (D-055) */
+  --color-border: #e3e8ef;
+  --color-border-strong: #cbd5e1;
+
+  /* 글자 */
+  --color-fg: #0f172a;
+  --color-fg-muted: #64748b;
+  --color-fg-subtle: #94a3b8;
+
+  /* 강조 — 유일하게 채도가 높은 색. "누를 수 있는 것" (D-052) */
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-deep: #1e40af;
+  --color-primary-subtle: #eff6ff;
+
+  /* 경고 */
+  --color-danger: #dc2626;
+  --color-danger-subtle: #fef2f2;
+
+  /* 상태 — 뮤트 톤. "읽는 것" (D-051 · D-052)
+     아이콘이 아니라 rounded-full div 로 표현한다 */
+  --color-status-todo: #a3b4c9;
+  --color-status-progress: #e0a758;
+  --color-status-review: #a98cd1;
+  --color-status-done: #7cb894;
+  --color-status-delayed: #d64545; /* 경고이므로 나머지보다 채도가 높다 */
+
+  /* 폰트 */
+  --font-sans: 'Pretendard Variable', Pretendard, system-ui, -apple-system, sans-serif;
+  --font-display: 'Montserrat', 'Pretendard Variable', Pretendard, sans-serif;
+
+  /* 타입 스케일 — 최소 14px, 12px 은 뱃지 전용, 상한 24px (D-054) */
+  --text-badge: 0.75rem; /* 12 — 뱃지 외 사용 금지 */
+  --text-badge--line-height: 1rem;
+  --text-xs: 0.875rem; /* 14 */
+  --text-xs--line-height: 1.375rem;
+  --text-sm: 0.9375rem; /* 15 */
+  --text-sm--line-height: 1.5rem;
+  --text-base: 1rem; /* 16 */
+  --text-base--line-height: 1.625rem;
+  --text-lg: 1.125rem; /* 18 */
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.25rem; /* 20 */
+  --text-xl--line-height: 1.875rem;
+  --text-2xl: 1.5rem; /* 24 — 상한 */
+  --text-2xl--line-height: 2rem;
+
+  /* 반경 */
+  --radius-badge: 2px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
+
+/* ────────────────────────────────────────────────────────────
+   기본
+   ──────────────────────────────────────────────────────────── */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: 1.625;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 모든 인터랙티브 요소에 보이는 포커스 링 (09 §5) */
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  /* 표·리스트에서 자릿수가 흔들리지 않게 */
+  table,
+  [data-tabular] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+}
+
+@layer utilities {
+  /* 포인트 숫자 — 단독으로 서는 숫자에만 (D-054) */
+  .num {
+    font-family: var(--font-display);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────
+   모션 (D-048a)
+   이동은 애니메이션, 등장은 즉시.
+   ──────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

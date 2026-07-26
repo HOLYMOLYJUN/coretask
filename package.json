@@ -1,0 +1,26 @@
+{
+  "name": "core-task",
+  "private": true,
+  "version": "0.1.0",
+  "description": "소규모 IT 개발팀을 위한 프로젝트 및 업무 관리 시스템",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=apps/web",
+    "db:push": "supabase db push",
+    "db:diff": "supabase db diff --linked",
+    "db:types": "supabase gen types typescript --linked > packages/types/src/database.ts",
+    "db:reset": "supabase db reset --linked"
+  },
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.110.8",
+    "dotenv": "^17.4.2",
+    "supabase": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,29 @@
+# 환경변수 — 절대 커밋하지 않는다 (SETUP §2-3)
+.env
+.env.*
+!.env.example
+
+# 의존성
+node_modules/
+.npm
+
+# 빌드 산출물
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# Supabase 로컬 상태
+supabase/.temp/
+supabase/.branches/
+
+# 에디터 · OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# 로그
+*.log
+npm-debug.log*
