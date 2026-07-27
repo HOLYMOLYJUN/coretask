@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { supabase, type EnrichedTask } from '@/lib/supabase'
+import { supabase, type EnrichedTask, type TaskPriority } from '@/lib/supabase'
 import { qk } from '@/lib/query'
 import { parseDbError } from '@/lib/errors'
 
@@ -149,20 +149,38 @@ export function useClaimTask(projectId: string) {
   })
 }
 
-/** US-301 AC-6 — 인라인 생성. 어느 컬럼에서 눌렀는지가 곧 담당자다 */
+/**
+ * 업무 생성.
+ * 어느 컬럼에서 눌렀는지가 곧 담당자다 (US-301 AC-6의 핵심) —
+ * 모달로 바뀐 뒤에도 그 값은 미리 채워진 채로 열린다 (create-task-dialog.tsx).
+ */
 export function useCreateTask(projectId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (v: { title: string; assigneeId: string | null; createdBy: string }) => {
+    mutationFn: async (v: {
+      title: string
+      assigneeId: string | null
+      createdBy: string
+      due?: string | null
+      priority?: TaskPriority
+      description?: string | null
+    }) => {
       const { error } = await supabase.from('tasks').insert({
         project_id: projectId,
         title: v.title,
         assignee_id: v.assigneeId,
         created_by: v.createdBy,
+        due_date: v.due ?? null,
+        priority: v.priority ?? 'normal',
+        description: v.description ?? null,
       })
       if (error) throw error
     },
     onError: (e) => toast.error(parseDbError(e).message),
-    onSettled: () => qc.invalidateQueries({ queryKey: qk.board(projectId) }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: qk.board(projectId) })
+      qc.invalidateQueries({ queryKey: qk.myTasks() })
+      qc.invalidateQueries({ queryKey: ['projects'] })
+    },
   })
 }

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase, type Tables } from '@/lib/supabase'
 import { qk } from '@/lib/query'
 import { useSession } from '@/features/auth/session'
@@ -14,12 +14,22 @@ export type Notif = Tables['notifications']['Row'] & {
  * "RLS 는 볼 수 있는 것을 정하고, 내 것은 쿼리가 좁힌다" — 이 규칙에 예외를 만들면
  * 어느 쿼리에 필터가 필요한지 매번 다시 생각해야 한다.
  */
+/**
+ * 알림 목록 — 10개씩 끊어 받는다 (10-UX-AUDIT §5-4a).
+ *
+ * 이전에는 `.limit(50)` 으로 한 번에 50개를 다 그렸다. 알림이 쌓이면 화면이
+ * 끝없이 길어졌고, 50개를 넘은 오래된 알림은 아예 볼 수 없었다.
+ */
+export const NOTIF_PAGE = 10
+
 export function useNotifications() {
   const { userId } = useSession()
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: qk.notifications(),
     enabled: !!userId,
-    queryFn: async (): Promise<Notif[]> => {
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }): Promise<Notif[]> => {
+      const from = pageParam as number
       const { data, error } = await supabase
         .from('notifications')
         .select(
@@ -27,10 +37,13 @@ export function useNotifications() {
         )
         .eq('user_id', userId!)
         .order('created_at', { ascending: false })
-        .limit(50)
+        .range(from, from + NOTIF_PAGE - 1)
       if (error) throw error
       return (data ?? []) as Notif[]
     },
+    // 마지막 페이지가 꽉 차 있으면 더 있을 수 있다. 덜 찼으면 끝이다
+    getNextPageParam: (last, all) =>
+      last.length < NOTIF_PAGE ? undefined : all.length * NOTIF_PAGE,
   })
 }
 

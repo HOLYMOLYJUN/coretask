@@ -6,7 +6,7 @@ import { useSession, useMe } from '@/features/auth/session'
 import { useProjects } from '@/features/projects/use-projects'
 import { StatusDot } from '@/components/status'
 import { Card, EmptyState, Spinner, Button, Badge } from '@/components/ui'
-import { dueLabel } from '@/lib/date'
+import { dueLabel, dueWithWeekday, toDateStr } from '@/lib/date'
 import { FolderPlus } from 'lucide-react'
 
 /**
@@ -44,6 +44,15 @@ export function DashboardPage() {
     (t) => (t.due_date && t.due_date <= today) || t.status === 'in_progress',
   )
   const inProgress = (mine.data ?? []).filter((t) => t.status === 'in_progress')
+  /**
+   * 이번주 마감 (US-701 AC-2).
+   * `오늘 할 일` 과 겹치지 않게 **내일부터** 이번 주 일요일까지만 본다 —
+   * 같은 카드가 두 위젯에 동시에 뜨면 건수가 부풀어 보인다.
+   */
+  const weekEnd = endOfThisWeek()
+  const thisWeek = (mine.data ?? []).filter(
+    (t) => t.due_date && t.due_date > today && t.due_date <= weekEnd,
+  )
   const open = (id: string) => nav(`/tasks/${id}`, { state: { backgroundLocation: loc } })
 
   // 소속 프로젝트가 0개면 대시보드 대신 안내 (US-103)
@@ -98,6 +107,16 @@ export function DashboardPage() {
           )}
         </Widget>
 
+        <Widget title="이번주 마감" count={thisWeek.length}>
+          {thisWeek.length ? (
+            thisWeek.map((t) => (
+              <Row key={t.id} task={t} weekday onClick={() => open(t.id!)} />
+            ))
+          ) : (
+            <EmptyState title="이번주에 마감인 업무가 없어요" achieved />
+          )}
+        </Widget>
+
         <Widget title="내 프로젝트" count={projects.data?.length ?? 0}>
           {(projects.data ?? []).map((s) => (
             <Link
@@ -138,7 +157,16 @@ function Widget({
   )
 }
 
-function Row({ task, onClick }: { task: EnrichedTask; onClick: () => void }) {
+function Row({
+  task,
+  weekday,
+  onClick,
+}: {
+  task: EnrichedTask
+  /** 이번주 마감에서는 D-2 보다 "수 7/30" 이 유용하다 — 요일에 일정이 걸려 있다 */
+  weekday?: boolean
+  onClick: () => void
+}) {
   const d = dueLabel(task.due_date)
   return (
     <button
@@ -147,6 +175,11 @@ function Row({ task, onClick }: { task: EnrichedTask; onClick: () => void }) {
     >
       {task.status && <StatusDot status={task.status} size="sm" />}
       <span className="flex-1 truncate text-xs">{task.title}</span>
+      {weekday && task.due_date && (
+        <span className="num shrink-0 text-badge text-fg-muted">
+          {dueWithWeekday(task.due_date)}
+        </span>
+      )}
       {d && (
         <Badge mono tone={task.is_overdue ? 'danger' : 'neutral'}>
           {d}
@@ -154,4 +187,11 @@ function Row({ task, onClick }: { task: EnrichedTask; onClick: () => void }) {
       )}
     </button>
   )
+}
+
+/** 이번 주의 일요일 (YYYY-MM-DD). 주가 일요일에 끝난다는 전제는 date-fns 기본과 같다 */
+function endOfThisWeek(now = new Date()): string {
+  const d = new Date(now)
+  d.setDate(d.getDate() + (7 - d.getDay()) % 7)
+  return toDateStr(d)
 }

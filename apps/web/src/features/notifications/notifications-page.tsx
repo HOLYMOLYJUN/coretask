@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { BellOff, BellRing, Smartphone } from 'lucide-react'
 import { toast } from 'sonner'
@@ -77,14 +77,33 @@ function PushBanner() {
 }
 
 export function NotificationsPage() {
-  const { data, isPending } = useNotifications()
+  const { data, isPending, hasNextPage, isFetchingNextPage, fetchNextPage } = useNotifications()
   const markRead = useMarkRead()
   const markAll = useMarkAllRead()
   const nav = useNavigate()
+  const sentinel = useRef<HTMLDivElement>(null)
+
+  /**
+   * 무한 스크롤 — 바닥이 보이면 다음 장을 가져온다.
+   * "더 보기" 버튼도 함께 남긴다: 관찰자가 못 도는 환경(감속 스크롤·접근성 도구)에서
+   * 목록이 조용히 끊기면 알림이 사라진 것처럼 보인다.
+   */
+  useEffect(() => {
+    const el = sentinel.current
+    if (!el || !hasNextPage) return
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !isFetchingNextPage) void fetchNextPage()
+      },
+      { rootMargin: '200px' },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   if (isPending) return <Spinner />
 
-  const list = data ?? []
+  const list = data?.pages.flat() ?? []
   const hasUnread = list.some((n) => !n.read_at)
 
   function open(n: Notif) {
@@ -143,6 +162,19 @@ export function NotificationsPage() {
             </li>
           ))}
         </ul>
+      )}
+
+      {hasNextPage && (
+        <div ref={sentinel} className="flex justify-center py-4">
+          <Button
+            variant="ghost"
+            className="px-3 py-1.5 text-xs"
+            disabled={isFetchingNextPage}
+            onClick={() => fetchNextPage()}
+          >
+            {isFetchingNextPage ? '불러오는 중' : '이전 알림 더 보기'}
+          </Button>
+        </div>
       )}
     </div>
   )

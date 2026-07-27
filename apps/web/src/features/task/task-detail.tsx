@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { X, ArrowLeft, Check, CornerUpLeft } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { X, ArrowLeft, Check, CornerUpLeft, CalendarDays } from 'lucide-react'
+import { supabase, type TaskPriority } from '@/lib/supabase'
 import { qk } from '@/lib/query'
+import { cn } from '@/lib/cn'
 import { useSession } from '@/features/auth/session'
+import { useProjectMembers } from '@/features/board/use-board'
+import { DuePopover } from '@/features/board/due-popover'
 import {
   useLeadProjectIds,
   useChangeStatus,
@@ -16,6 +19,8 @@ import { Spinner, Badge, Button } from '@/components/ui'
 import { dueLabel, dueShort, elapsedLabel } from '@/lib/date'
 import { TimelineSection } from './timeline'
 import { useDeleteTask } from './use-delete'
+import { useUpdateTask } from './use-update-task'
+import { EditableText, EditableSelect } from './editable'
 
 /**
  * D-031 — 하나의 주소, 두 가지 표현.
@@ -45,8 +50,11 @@ function Body({ taskId }: { taskId: string }) {
   const change = useChangeStatus()
   const reject = useRejectTask()
   const del = useDeleteTask()
+  const update = useUpdateTask(taskId)
   const [rejecting, setRejecting] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [duePicker, setDuePicker] = useState<{ x: number; y: number } | null>(null)
+  const { data: members = [] } = useProjectMembers(task?.project_id ?? '')
 
   if (isPending) return <Spinner />
   if (!task) return <p className="p-4 text-xs text-fg-muted">업무를 찾을 수 없어요</p>
@@ -56,10 +64,23 @@ function Body({ taskId }: { taskId: string }) {
   const myAction = isMine && task.status ? nextAction(task.status) : null
   // US-302 AC-3: Lead. 본인이 만들었고 아직 미배정이면 만든 사람도
   const canDelete = isLead || (task.created_by === userId && !task.assignee_id)
+  /**
+   * 편집 권한 (US-601 AC-3).
+   * 담당자 본인과 Lead. 완료된 업무는 기록이므로 건드리지 않는다 —
+   * 완료 뒤 마감일을 고치면 "기한 내/지연" 판정이 사후에 바뀐다.
+   */
+  const canEdit = (isLead || isMine) && task.status !== 'done'
+  const canAssign = isLead // 남에게 배정하는 것은 Lead 권한 (tg_task_validate)
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold">{task.title}</h2>
+      <EditableText
+        value={task.title ?? ''}
+        editable={canEdit}
+        maxLength={200}
+        className="text-lg font-semibold"
+        onSave={(title) => update.mutate({ title })}
+      />
 
       <div className="flex flex-wrap items-center gap-3">
         {task.status && <StatusBadge status={task.status} size="md" />}
@@ -68,13 +89,28 @@ function Body({ taskId }: { taskId: string }) {
             <span className="text-xs text-fg-muted">{elapsedLabel(task.status_changed_at)}</span>
           )}
         {(task.is_stale || task.is_overdue) && <DelayedBadge />}
+
+        {/* 마감일 — 없을 때도 자리를 남긴다. 여기가 §1-A 의 막다른 길이었다 */}
+        <button
+          type="button"
+          disabled={!canEdit}
+          onClick={(e) => {
+            const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+            setDuePicker({ x: r.left, y: r.bottom + 6 })
+          }}
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs transition-colors',
+            canEdit && 'hover:bg-bg-subtle',
+            task.due_date ? 'text-fg-muted' : 'text-danger',
+          )}
+        >
+          <CalendarDays size={14} strokeWidth={1.75} />
+          {task.due_date ? dueShort(task.due_date) : '마감일 없음'}
+        </button>
         {task.due_date && (
-          <>
-            <span className="text-xs text-fg-muted">{dueShort(task.due_date)}</span>
-            <Badge mono tone={task.is_overdue ? 'danger' : 'neutral'}>
-              {dueLabel(task.due_date)}
-            </Badge>
-          </>
+          <Badge mono tone={task.is_overdue ? 'danger' : 'neutral'}>
+            {dueLabel(task.due_date)}
+          </Badge>
         )}
       </div>
 
@@ -115,19 +151,56 @@ function Body({ taskId }: { taskId: string }) {
         </p>
       )}
 
-      <dl className="grid grid-cols-[80px_1fr] gap-y-2 text-xs">
+      <dl className="grid grid-cols-[80px_1fr] items-center gap-y-1 text-xs">
         <dt className="text-fg-muted">프로젝트</dt>
         <dd>{task.project_name}</dd>
-        <dt className="text-fg-muted">시작일</dt>
-        <dd>{task.start_date ?? '-'}</dd>
+
+        <dt className="text-fg-muted">담당자</dt>
+        <dd>
+          <EditableSelect
+            value={task.assignee_id ?? ''}
+            editable={canAssign}
+            className="text-xs"
+            options={[
+              { value: '', label: '미배정' },
+              ...members.map((m) => ({ value: m.user_id, label: m.name })),
+            ]}
+            onSave={(id) => update.mutate({ assignee_id: id || null })}
+          />
+        </dd>
+
         <dt className="text-fg-muted">우선순위</dt>
-        <dd>{task.priority === 'high' ? '높음' : task.priority === 'low' ? '낮음' : '보통'}</dd>
+        <dd>
+          <EditableSelect
+            value={(task.priority ?? 'normal') as TaskPriority}
+            editable={canEdit}
+            className="text-xs"
+            options={[
+              { value: 'low', label: '낮음' },
+              { value: 'normal', label: '보통' },
+              { value: 'high', label: '높음' },
+            ]}
+            onSave={(priority) => update.mutate({ priority })}
+          />
+        </dd>
+
+        <dt className="text-fg-muted">시작일</dt>
+        <dd className="px-1.5">{task.start_date ?? '-'}</dd>
       </dl>
 
-      {task.description && (
-        <p className="border-t border-border pt-3 text-xs whitespace-pre-wrap">
-          {task.description}
-        </p>
+      {/* 설명 — 비어 있어도 자리를 남긴다. 없으면 추가할 곳이 없어진다 */}
+      {(canEdit || task.description) && (
+        <div className="border-t border-border pt-3">
+          <EditableText
+            value={task.description ?? ''}
+            editable={canEdit}
+            multiline
+            maxLength={5000}
+            placeholder="설명 추가"
+            className="text-xs"
+            onSave={(description) => update.mutate({ description: description || null })}
+          />
+        </div>
       )}
 
       <TimelineSection taskId={taskId} projectId={task.project_id} canLead={isLead} />
@@ -139,6 +212,18 @@ function Body({ taskId }: { taskId: string }) {
         >
           업무 삭제
         </button>
+      )}
+
+      {duePicker && (
+        <DuePopover
+          x={duePicker.x}
+          y={duePicker.y}
+          onPick={(due) => {
+            update.mutate({ due_date: due })
+            setDuePicker(null)
+          }}
+          onSkip={() => setDuePicker(null)}
+        />
       )}
 
       {deleting && (

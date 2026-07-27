@@ -21,7 +21,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, Info, CheckCheck, Users } from 'lucide-react'
+import { Plus, Info, CheckCheck, Users, FileText } from 'lucide-react'
 import type { EnrichedTask } from '@/lib/supabase'
 import { useSession } from '@/features/auth/session'
 import { useLeadProjectIds } from '@/features/my-tasks/use-my-tasks'
@@ -29,6 +29,7 @@ import { useBoard, useMoveTask, useClaimTask, useCreateTask, UNASSIGNED } from '
 import { TaskCard } from './task-card'
 import { DuePopover } from './due-popover'
 import { MembersDialog } from './members-dialog'
+import { CreateTaskDialog } from './create-task-dialog'
 import { Spinner, Button } from '@/components/ui'
 import { cn } from '@/lib/cn'
 
@@ -56,6 +57,8 @@ export function BoardPage() {
   const create = useCreateTask(projectId)
 
   const [managingMembers, setManagingMembers] = useState(false)
+  /** 값 = 누른 컬럼 id (담당자). null 이면 닫힘 */
+  const [creating, setCreating] = useState<string | null>(null)
   const [dragging, setDragging] = useState<EnrichedTask | null>(null)
   /**
    * 드래그 중의 미리보기 순서.
@@ -280,6 +283,14 @@ export function BoardPage() {
             <Users size={14} strokeWidth={1.75} />
             멤버 <span className="num">{members.data?.length ?? 0}</span>
           </button>
+          {/* 문서는 프로젝트 안에만 있다 (D-013) */}
+          <Link
+            to={`/projects/${projectId}/docs`}
+            className="flex items-center gap-1 text-xs text-fg-muted hover:text-fg"
+          >
+            <FileText size={14} strokeWidth={1.75} />
+            문서
+          </Link>
           {/* 완료는 보드에 없다 (D-005) — 끝난 일은 표로 따로 본다 */}
           <Link
             to={`/projects/${projectId}/done`}
@@ -290,6 +301,29 @@ export function BoardPage() {
           </Link>
         </div>
       </div>
+
+      {creating !== null && (
+        <CreateTaskDialog
+          members={members.data ?? []}
+          defaultAssignee={creating}
+          canAssign={isLead}
+          busy={create.isPending}
+          onCreate={(v) =>
+            create.mutate(
+              {
+                title: v.title,
+                assigneeId: v.assigneeId,
+                createdBy: userId!,
+                due: v.due,
+                priority: v.priority,
+                description: v.description,
+              },
+              { onSuccess: () => setCreating(null) },
+            )
+          }
+          onClose={() => setCreating(null)}
+        />
+      )}
 
       {managingMembers && (
         <MembersDialog
@@ -329,13 +363,7 @@ export function BoardPage() {
               tasks={list.filter((t) => colOf(t) === col.id)}
               canDragTask={canDragTask}
               onOpen={openTask}
-              onCreate={(title) =>
-                create.mutate({
-                  title,
-                  assigneeId: col.id === UNASSIGNED ? null : col.id,
-                  createdBy: userId!,
-                })
-              }
+              onCreate={() => setCreating(col.id)}
             />
           ))}
         </div>
@@ -402,12 +430,9 @@ function Column({
   highlight?: boolean
   boardEmpty?: boolean
   onOpen: (id: string) => void
-  onCreate: (title: string) => void
+  onCreate: () => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id })
-  // 보드가 완전히 비어 있으면 미배정 컬럼의 입력창을 열어둔다
-  const [adding, setAdding] = useState(!!boardEmpty && id === UNASSIGNED)
-  const [title, setTitle] = useState('')
 
   return (
     <div className="flex w-64 shrink-0 flex-col">
@@ -433,44 +458,27 @@ function Column({
             <SortableCard key={t.id} task={t} canDrag={canDragTask(t)} onOpen={onOpen} />
           ))}
 
-          {tasks.length === 0 && !adding && (
+          {tasks.length === 0 && (
             <p className="rounded-md border border-dashed border-border px-3 py-6 text-center text-xs text-fg-subtle">
-              {id === UNASSIGNED ? '미배정 업무가 없어요' : '여기로 카드를 끌어다 놓으세요'}
+              {boardEmpty && id === UNASSIGNED
+                ? '아직 업무가 없어요'
+                : id === UNASSIGNED
+                  ? '미배정 업무가 없어요'
+                  : '여기로 카드를 끌어다 놓으세요'}
             </p>
           )}
         </div>
       </SortableContext>
 
-      {/* 인라인 생성 — 모달을 띄우지 않는다 (US-301 AC-6) */}
-      {adding ? (
-        <form
-          className="mt-2"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (!title.trim()) return
-            onCreate(title.trim())
-            setTitle('') // 입력창을 유지해 다음 업무를 바로 적을 수 있다
-          }}
-        >
-          <input
-            autoFocus
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onBlur={() => !title && setAdding(false)}
-            placeholder="제목을 입력하고 Enter"
-            className="w-full rounded-md border border-primary bg-bg px-2.5 py-2 text-base"
-          />
-        </form>
-      ) : (
-        <Button
-          variant="ghost"
-          className="mt-2 justify-start px-2.5 py-2 text-xs"
-          onClick={() => setAdding(true)}
-        >
-          <Plus size={16} strokeWidth={1.75} />
-          업무 추가
-        </Button>
-      )}
+      {/* 생성은 모달이다 — 제목만 받으면 마감일 없는 업무가 계속 쌓인다 (10-UX-AUDIT §5-1) */}
+      <Button
+        variant="ghost"
+        className="mt-2 justify-start px-2.5 py-2 text-xs"
+        onClick={onCreate}
+      >
+        <Plus size={16} strokeWidth={1.75} />
+        업무 추가
+      </Button>
     </div>
   )
 }

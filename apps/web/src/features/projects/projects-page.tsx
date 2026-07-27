@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Lock, FolderPlus, UserPlus, Archive, ArchiveRestore } from 'lucide-react'
+import { Plus, Lock, FolderPlus, UserPlus, Archive, ArchiveRestore, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { qk } from '@/lib/query'
@@ -42,7 +42,7 @@ export function ProjectsPage() {
             <Button onClick={() => setInviting(true)}>
               <UserPlus size={18} strokeWidth={1.75} />팀원 초대
             </Button>
-            <Button variant="primary" onClick={() => setCreating((v) => !v)}>
+            <Button variant="primary" onClick={() => setCreating(true)}>
               <Plus size={18} strokeWidth={1.75} />새 프로젝트
             </Button>
           </div>
@@ -51,7 +51,7 @@ export function ProjectsPage() {
 
       {inviting && <InviteDialog onClose={() => setInviting(false)} />}
 
-      {creating && <CreateProjectForm onDone={() => setCreating(false)} />}
+      {creating && <CreateProjectDialog onClose={() => setCreating(false)} />}
 
       {/* 보관됨은 평소에 존재를 드러내지 않는다 — 보관한 것이 있을 때만 탭이 생긴다 */}
       {!!archived?.length && (
@@ -241,50 +241,116 @@ function DeleteProjectDialog({ project, onClose }: { project: Stats; onClose: ()
   )
 }
 
-/** 필수 입력은 이름 하나뿐 (US-201 AC-2). 폼이 길면 프로젝트를 안 만들고 개인 업무에 몰아넣는다 */
-function CreateProjectForm({ onDone }: { onDone: () => void }) {
+/**
+ * 프로젝트 생성 모달.
+ *
+ * 필수 입력은 여전히 이름 하나뿐이다 (US-201 AC-2) — 나머지는 접어둔다.
+ * 폼이 길어 보이면 프로젝트를 안 만들고 `개인 업무` 에 다 몰아넣는다 (Foundation §1).
+ *
+ * 만든 뒤에는 그 프로젝트 보드로 데려간다 (US-201 AC-4).
+ * 목록에 한 줄 늘려놓고 끝내면 방금 만든 것을 사용자가 다시 찾아야 한다.
+ */
+function CreateProjectDialog({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
+  const nav = useNavigate()
   const [name, setName] = useState('')
+  const [more, setMore] = useState(false)
+  const [customer, setCustomer] = useState('')
+  const [description, setDescription] = useState('')
 
   const mut = useMutation({
-    mutationFn: async (n: string) => {
+    mutationFn: async () => {
       // D-045: insert().select() 는 RLS 때문에 실패한다. RPC 를 쓴다
-      const { data, error } = await supabase.rpc('create_project', { p_name: n })
+      const { data, error } = await supabase.rpc('create_project', {
+        p_name: name.trim(),
+        p_customer: customer.trim() || undefined,
+        p_description: description.trim() || undefined,
+      })
       if (error) throw error
-      return data
+      return data as { id: string } | null
     },
-    onSuccess: () => {
+    onSuccess: (project) => {
       qc.invalidateQueries({ queryKey: qk.projects() })
-      setName('')
-      onDone()
+      onClose()
+      if (project?.id) nav(`/projects/${project.id}/board`)
     },
     onError: (e) => toast.error(parseDbError(e).message),
   })
 
   function onSubmit(e: FormEvent) {
     e.preventDefault()
-    if (name.trim()) mut.mutate(name.trim())
+    if (name.trim() && !mut.isPending) mut.mutate()
   }
 
   return (
-    <Card className="mt-4 p-4">
-      <form onSubmit={onSubmit} className="flex flex-col gap-3 sm:flex-row">
-        <Input
-          autoFocus
-          maxLength={60}
-          placeholder="프로젝트 이름"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <div className="flex gap-2">
+    <>
+      <div className="fixed inset-0 z-60 bg-[rgba(15,23,42,.32)]" onClick={onClose} />
+      <form
+        onSubmit={onSubmit}
+        className="fixed left-1/2 top-1/2 z-70 w-[min(92vw,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border-strong bg-bg"
+      >
+        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+          <h3 className="text-base font-semibold">새 프로젝트</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="닫기"
+            className="rounded-full p-1 text-fg-muted transition-colors hover:bg-bg-subtle hover:text-fg"
+          >
+            <X size={18} strokeWidth={1.75} />
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-3 px-5 py-4">
+          <Input
+            autoFocus
+            maxLength={60}
+            placeholder="프로젝트 이름"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+
+          {more ? (
+            <>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-fg-muted">고객사 (선택)</span>
+                <Input
+                  className="text-xs"
+                  maxLength={60}
+                  value={customer}
+                  onChange={(e) => setCustomer(e.target.value)}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-fg-muted">설명 (선택)</span>
+                <textarea
+                  rows={3}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="resize-none rounded-md border border-border bg-bg px-2.5 py-2 text-xs placeholder:text-fg-subtle focus:border-primary focus:outline-none"
+                />
+              </label>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setMore(true)}
+              className="self-start text-badge text-fg-subtle hover:text-fg"
+            >
+              고객사 · 설명 추가
+            </button>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
+          <Button type="button" variant="ghost" onClick={onClose}>
+            취소
+          </Button>
           <Button type="submit" variant="primary" disabled={!name.trim() || mut.isPending}>
             만들기
           </Button>
-          <Button type="button" variant="ghost" onClick={onDone}>
-            취소
-          </Button>
         </div>
       </form>
-    </Card>
+    </>
   )
 }
