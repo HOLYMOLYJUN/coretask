@@ -13,6 +13,7 @@ import { DashboardPage } from '@/features/dashboard/dashboard-page'
 import { MyTasksPage } from '@/features/my-tasks/my-tasks-page'
 import { TaskPage, TaskPanel } from '@/features/task/task-detail'
 import { NotificationsPage } from '@/features/notifications/notifications-page'
+import { SettingsPage } from '@/features/settings/settings-page'
 import { Placeholder } from '@/components/placeholder'
 
 /**
@@ -46,7 +47,7 @@ export function AppRoutes() {
               <Route path="/projects/:projectId/board" element={<BoardPage />} />
               <Route path="/projects/:projectId/done" element={<ProjectDonePage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
-              <Route path="/settings" element={<Placeholder title="설정" />} />
+              <Route path="/settings" element={<SettingsPage />} />
               <Route path="/more" element={<Placeholder title="더보기" />} />
 
               {/* 전체 페이지 — 알림 · 직접 URL · 새로고침 */}
