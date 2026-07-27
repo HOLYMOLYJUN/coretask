@@ -916,6 +916,7 @@ export type Database = {
       }
       create_workspace: { Args: { p_name: string }; Returns: string }
       current_workspace_id: { Args: never; Returns: string }
+      delete_task: { Args: { p_task: string }; Returns: undefined }
       is_project_lead: { Args: { p_project: string }; Returns: boolean }
       is_project_member: { Args: { p_project: string }; Returns: boolean }
       is_workspace_admin: { Args: { p_workspace: string }; Returns: boolean }
@@ -964,6 +965,7 @@ export type Database = {
         Args: { p_reason: string; p_task: string }
         Returns: undefined
       }
+      restore_task: { Args: { p_task: string }; Returns: undefined }
     }
     Enums: {
       activity_type:

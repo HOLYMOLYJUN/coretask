@@ -8,6 +8,10 @@ import { parseDbError } from '@/lib/errors'
  * US-302 AC-4 — 삭제는 soft delete + 10초 Undo.
  * deleted_at 을 세우면 RLS(tasks_read)가 모든 조회에서 숨긴다.
  * 권한 판정은 tg_task_delete_validate 가 한다 — 클라이언트는 시도만 한다.
+ *
+ * ⚠️ 테이블 UPDATE 가 아니라 RPC 다 (마이그레이션 23).
+ * PostgREST 의 UPDATE 는 RETURNING 을 달고 나가고, 그러면 SELECT 정책이
+ * 변경 후의 행에도 걸린다 — 삭제된 행은 tasks_read 를 통과할 수 없다.
  */
 export function useDeleteTask() {
   const qc = useQueryClient()
@@ -21,7 +25,7 @@ export function useDeleteTask() {
 
   const restore = useMutation({
     mutationFn: async (taskId: string) => {
-      const { error } = await supabase.from('tasks').update({ deleted_at: null }).eq('id', taskId)
+      const { error } = await supabase.rpc('restore_task', { p_task: taskId })
       if (error) throw error
     },
     onSuccess: (_d, taskId) => {
@@ -33,10 +37,7 @@ export function useDeleteTask() {
 
   return useMutation({
     mutationFn: async (taskId: string) => {
-      const { error } = await supabase
-        .from('tasks')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', taskId)
+      const { error } = await supabase.rpc('delete_task', { p_task: taskId })
       if (error) throw error
     },
     onSuccess: (_d, taskId) => {
