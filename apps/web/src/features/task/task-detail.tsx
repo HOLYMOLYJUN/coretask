@@ -14,6 +14,8 @@ import {
 import { StatusBadge, DelayedBadge } from '@/components/status'
 import { Spinner, Badge, Button } from '@/components/ui'
 import { dueLabel, dueShort, elapsedLabel } from '@/lib/date'
+import { CommentsSection } from './comments'
+import { useDeleteTask } from './use-delete'
 
 /**
  * D-031 — 하나의 주소, 두 가지 표현.
@@ -37,11 +39,14 @@ function useTask(taskId: string) {
 
 function Body({ taskId }: { taskId: string }) {
   const { userId } = useSession()
+  const nav = useNavigate()
   const { data: task, isPending } = useTask(taskId)
   const { data: leadIds } = useLeadProjectIds()
   const change = useChangeStatus()
   const reject = useRejectTask()
+  const del = useDeleteTask()
   const [rejecting, setRejecting] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   if (isPending) return <Spinner />
   if (!task) return <p className="p-4 text-xs text-fg-muted">업무를 찾을 수 없어요</p>
@@ -49,6 +54,8 @@ function Body({ taskId }: { taskId: string }) {
   const isLead = !!task.project_id && !!leadIds?.has(task.project_id)
   const isMine = task.assignee_id === userId
   const myAction = isMine && task.status ? nextAction(task.status) : null
+  // US-302 AC-3: Lead. 본인이 만들었고 아직 미배정이면 만든 사람도
+  const canDelete = isLead || (task.created_by === userId && !task.assignee_id)
 
   return (
     <div className="flex flex-col gap-4">
@@ -123,9 +130,32 @@ function Body({ taskId }: { taskId: string }) {
         </p>
       )}
 
-      <p className="border-t border-border pt-3 text-xs text-fg-subtle">
-        댓글과 활동 로그는 M3 에서 붙습니다 (US-602 · US-603)
-      </p>
+      <CommentsSection taskId={taskId} projectId={task.project_id} canLead={isLead} />
+
+      {canDelete && (
+        <button
+          onClick={() => setDeleting(true)}
+          className="self-start border-t border-border pt-3 text-badge text-fg-subtle transition-colors hover:text-danger"
+        >
+          업무 삭제
+        </button>
+      )}
+
+      {deleting && (
+        <DeleteDialog
+          title={task.title ?? ''}
+          busy={del.isPending}
+          onConfirm={() =>
+            del.mutate(taskId, {
+              onSuccess: () => {
+                setDeleting(false)
+                nav(-1)
+              },
+            })
+          }
+          onClose={() => setDeleting(false)}
+        />
+      )}
 
       {rejecting && (
         <RejectDialog
@@ -140,6 +170,41 @@ function Body({ taskId }: { taskId: string }) {
         />
       )}
     </div>
+  )
+}
+
+/** 삭제 확인 (US-302 AC-4). 확인 후에도 10초 Undo 토스트가 한 번 더 받쳐준다 */
+function DeleteDialog({
+  title,
+  busy,
+  onConfirm,
+  onClose,
+}: {
+  title: string
+  busy: boolean
+  onConfirm: () => void
+  onClose: () => void
+}) {
+  return (
+    <>
+      <div className="fixed inset-0 z-60 bg-[rgba(15,23,42,.32)]" onClick={onClose} />
+      <div className="fixed left-1/2 top-1/2 z-70 w-[min(92vw,24rem)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border-strong bg-bg p-5">
+        <h3 className="text-base font-semibold">업무를 삭제할까요?</h3>
+        <p className="mt-2 text-xs text-fg-muted">
+          <b className="text-fg">{title}</b>
+          <br />
+          댓글과 활동 기록도 함께 사라져요. 삭제 후 10초 안에 되돌릴 수 있어요.
+        </p>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>
+            취소
+          </Button>
+          <Button variant="danger" disabled={busy} onClick={onConfirm}>
+            삭제
+          </Button>
+        </div>
+      </div>
+    </>
   )
 }
 

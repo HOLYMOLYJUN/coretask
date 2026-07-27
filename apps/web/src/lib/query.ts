@@ -21,6 +21,7 @@ export const qk = {
   myTasks: () => ['my-tasks'] as const,
   task: (taskId: string) => ['task', taskId] as const,
   taskTimeline: (taskId: string) => ['task', taskId, 'timeline'] as const,
+  comments: (taskId: string) => ['task', taskId, 'comments'] as const,
 
   notifications: () => ['notifications'] as const,
   documents: (projectId: string) => ['documents', projectId] as const,

@@ -12,9 +12,11 @@ export interface BoardMember {
   name: string
 }
 
-export function useBoard(projectId: string) {
-  const members = useQuery({
+/** 댓글 멘션(US-602)도 같은 키로 캐시를 공유한다 */
+export function useProjectMembers(projectId: string) {
+  return useQuery({
     queryKey: qk.projectMembers(projectId),
+    enabled: !!projectId,
     queryFn: async (): Promise<BoardMember[]> => {
       const { data, error } = await supabase
         .from('project_members')
@@ -30,6 +32,10 @@ export function useBoard(projectId: string) {
         .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
     },
   })
+}
+
+export function useBoard(projectId: string) {
+  const members = useProjectMembers(projectId)
 
   const tasks = useQuery({
     queryKey: qk.board(projectId),
