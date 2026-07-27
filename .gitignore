@@ -20,6 +20,9 @@ supabase/.branches/
 # 에디터 · OS
 .vscode/*
 !.vscode/extensions.json
+# settings.json 은 예외다 — 개인 취향이 아니라 Edge Function 을 Deno 로 읽게 하는
+# 프로젝트 설정이다. 없으면 누구 화면에서든 send-push 가 빨간 줄로 덮인다
+!.vscode/settings.json
 .idea/
 .DS_Store
 Thumbs.db

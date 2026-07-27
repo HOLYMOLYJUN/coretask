@@ -1,0 +1,13 @@
+{
+  // Edge Function 은 Deno 런타임이다 (supabase/functions).
+  // 이 폴더만 Deno 로 검사하게 하고, 나머지(apps/web)는 그대로 TypeScript 가 본다.
+  // 이 설정이 없으면 VSCode 의 TS 가 `npm:` 임포트와 전역 Deno 를 모르는 코드로 읽어
+  // send-push/index.ts 전체에 빨간 줄이 생긴다.
+  "deno.enable": false,
+  "deno.enablePaths": ["supabase/functions"],
+  "deno.lint": true,
+
+  // 워크스페이스 TypeScript 를 쓴다 — VSCode 내장 버전과 갈리면
+  // tsc 는 통과하는데 에디터만 빨간 줄이 뜨는 상황이 생긴다
+  "typescript.tsdk": "node_modules/typescript/lib"
+}

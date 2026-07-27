@@ -1,0 +1,5 @@
+{
+  // Edge Function(supabase/functions)을 Deno 로 검사하려면 필요하다.
+  // settings.json 의 deno.enablePaths 가 이 확장에게 주는 지시다.
+  "recommendations": ["denoland.vscode-deno"]
+}

@@ -1,0 +1,8 @@
+{
+  // 이 폴더가 Deno 프로젝트임을 표시한다 — VSCode Deno 확장이 이 파일을 보고 범위를 잡는다.
+  // 임포트 맵은 두지 않는다. index.ts 가 쓰는 `npm:` 지정자는 Deno 가 그대로 이해하고,
+  // 별칭으로 바꾸면 배포가 이 파일에 의존하게 되어 실패 지점만 하나 늘어난다.
+  "compilerOptions": {
+    "lib": ["deno.window", "deno.ns", "esnext"]
+  }
+}

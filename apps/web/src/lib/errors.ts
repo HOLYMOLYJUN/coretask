@@ -26,6 +26,7 @@ export const MESSAGE: Record<string, string> = {
   ALREADY_ASSIGNED: '다른 분이 먼저 가져갔어요',
   NOT_IN_REVIEW: '이미 처리된 업무예요',
   TASK_NOT_FOUND: '업무를 찾을 수 없어요',
+  PERSONAL_PROJECT: '개인 업무는 보관하거나 삭제할 수 없어요',
   DUPLICATE: '이미 참여 중이거나 초대한 멤버예요',
   UNKNOWN: '잠시 후 다시 시도해주세요',
 }

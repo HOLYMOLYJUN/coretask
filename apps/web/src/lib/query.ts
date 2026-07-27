@@ -12,6 +12,7 @@ export const qk = {
   members: () => ['workspace', 'members'] as const,
 
   projects: () => ['projects'] as const,
+  archivedProjects: () => ['projects', 'archived'] as const,
   project: (id: string) => ['projects', id] as const,
   projectMembers: (id: string) => ['projects', id, 'members'] as const,
   projectStats: (id: string) => ['projects', id, 'stats'] as const,
