@@ -57,8 +57,14 @@ function PushBanner() {
         onClick={async () => {
           if (!userId) return
           setBusy(true)
-          const r = await enablePush(userId).catch(() => 'unsupported' as const)
+          // 실패를 'unsupported' 로 뭉개면 배너만 사라지고 아무 피드백이 없다 —
+          // 구독 실패는 배너를 유지한 채 오류 토스트로 알린다
+          const r = await enablePush(userId).catch((e: Error) => {
+            toast.error(`알림을 켜지 못했어요: ${e.message}`)
+            return null
+          })
           setBusy(false)
+          if (r === null) return
           setState(r)
           if (r === 'granted') toast.success('알림이 켜졌어요')
           if (r === 'denied') toast.error('브라우저 설정에서 알림 권한을 허용해야 해요')

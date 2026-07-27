@@ -35,6 +35,9 @@ export async function enablePush(userId: string): Promise<PushState> {
   const state = pushState()
   if (state === 'unsupported' || state === 'ios-needs-install' || state === 'denied') return state
 
+  const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
+  if (!vapidKey) throw new Error('VITE_VAPID_PUBLIC_KEY 가 빌드에 없다 — 배포 환경변수 누락')
+
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') return permission as PushState
 
@@ -43,16 +46,17 @@ export async function enablePush(userId: string): Promise<PushState> {
     (await reg.pushManager.getSubscription()) ??
     (await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(import.meta.env.VITE_VAPID_PUBLIC_KEY),
+      applicationServerKey: urlBase64ToUint8Array(vapidKey),
     }))
 
   const json = sub.toJSON()
   if (!json.keys?.p256dh || !json.keys?.auth) return 'unsupported'
 
   // endpoint 가 unique — 같은 기기의 재구독은 덮어쓴다
-  await supabase.from('push_subscriptions').upsert(
+  const { error } = await supabase.from('push_subscriptions').upsert(
     { user_id: userId, endpoint: sub.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth },
     { onConflict: 'endpoint' },
   )
+  if (error) throw error
   return 'granted'
 }
