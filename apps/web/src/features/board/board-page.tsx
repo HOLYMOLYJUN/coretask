@@ -21,12 +21,14 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, Info, CheckCheck } from 'lucide-react'
+import { Plus, Info, CheckCheck, Users } from 'lucide-react'
 import type { EnrichedTask } from '@/lib/supabase'
 import { useSession } from '@/features/auth/session'
+import { useLeadProjectIds } from '@/features/my-tasks/use-my-tasks'
 import { useBoard, useMoveTask, useClaimTask, useCreateTask, UNASSIGNED } from './use-board'
 import { TaskCard } from './task-card'
 import { DuePopover } from './due-popover'
+import { MembersDialog } from './members-dialog'
 import { Spinner, Button } from '@/components/ui'
 import { cn } from '@/lib/cn'
 
@@ -53,6 +55,7 @@ export function BoardPage() {
   const claim = useClaimTask(projectId)
   const create = useCreateTask(projectId)
 
+  const [managingMembers, setManagingMembers] = useState(false)
   const [dragging, setDragging] = useState<EnrichedTask | null>(null)
   /**
    * 드래그 중의 미리보기 순서.
@@ -82,6 +85,13 @@ export function BoardPage() {
     () => members.data?.some((m) => m.user_id === userId && m.role === 'lead') ?? false,
     [members.data, userId],
   )
+  /**
+   * 멤버 관리 권한은 서버(is_project_lead)와 같은 기준으로 판정한다.
+   * 위 isLead 는 project_members 만 보므로, 프로젝트에 속하지 않은 워크스페이스
+   * Admin 을 놓친다 — 그 사람은 실제로는 관리할 수 있는데 버튼이 잠긴다.
+   */
+  const { data: leadIds } = useLeadProjectIds()
+  const canManageMembers = isLead || !!leadIds?.has(projectId)
 
   const counts = useMemo(() => {
     const t = tasks.data ?? []
@@ -261,15 +271,33 @@ export function BoardPage() {
           )
         })}
 
-        {/* 완료는 보드에 없다 (D-005) — 끝난 일은 표로 따로 본다 */}
-        <Link
-          to={`/projects/${projectId}/done`}
-          className="ml-auto flex items-center gap-1 text-xs text-fg-muted hover:text-fg"
-        >
-          <CheckCheck size={14} strokeWidth={1.75} />
-          완료된 업무
-        </Link>
+        <div className="ml-auto flex items-center gap-3">
+          {/* 컬럼이 곧 사람이다 — 사람을 더하는 입구가 보드에 있어야 한다 (US-202) */}
+          <button
+            onClick={() => setManagingMembers(true)}
+            className="flex items-center gap-1 text-xs text-fg-muted hover:text-fg"
+          >
+            <Users size={14} strokeWidth={1.75} />
+            멤버 <span className="num">{members.data?.length ?? 0}</span>
+          </button>
+          {/* 완료는 보드에 없다 (D-005) — 끝난 일은 표로 따로 본다 */}
+          <Link
+            to={`/projects/${projectId}/done`}
+            className="flex items-center gap-1 text-xs text-fg-muted hover:text-fg"
+          >
+            <CheckCheck size={14} strokeWidth={1.75} />
+            완료된 업무
+          </Link>
+        </div>
       </div>
+
+      {managingMembers && (
+        <MembersDialog
+          projectId={projectId}
+          canManage={canManageMembers}
+          onClose={() => setManagingMembers(false)}
+        />
+      )}
 
       {!isLead && (
         <p className="flex items-center gap-2 border-b border-border bg-bg-subtle px-4 py-2 text-xs text-fg-muted md:px-6">
