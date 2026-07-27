@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router'
+import { useNavigate, useParams, useSearchParams, useLocation, Link } from 'react-router'
 import {
   DndContext,
   DragOverlay,
@@ -21,7 +21,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, Info } from 'lucide-react'
+import { Plus, Info, CheckCheck } from 'lucide-react'
 import type { EnrichedTask } from '@/lib/supabase'
 import { useSession } from '@/features/auth/session'
 import { useBoard, useMoveTask, useClaimTask, useCreateTask, UNASSIGNED } from './use-board'
@@ -260,6 +260,15 @@ export function BoardPage() {
             </button>
           )
         })}
+
+        {/* 완료는 보드에 없다 (D-005) — 끝난 일은 표로 따로 본다 */}
+        <Link
+          to={`/projects/${projectId}/done`}
+          className="ml-auto flex items-center gap-1 text-xs text-fg-muted hover:text-fg"
+        >
+          <CheckCheck size={14} strokeWidth={1.75} />
+          완료된 업무
+        </Link>
       </div>
 
       {!isLead && (

@@ -14,7 +14,7 @@ import {
 import { StatusBadge, DelayedBadge } from '@/components/status'
 import { Spinner, Badge, Button } from '@/components/ui'
 import { dueLabel, dueShort, elapsedLabel } from '@/lib/date'
-import { CommentsSection } from './comments'
+import { TimelineSection } from './timeline'
 import { useDeleteTask } from './use-delete'
 
 /**
@@ -130,7 +130,7 @@ function Body({ taskId }: { taskId: string }) {
         </p>
       )}
 
-      <CommentsSection taskId={taskId} projectId={task.project_id} canLead={isLead} />
+      <TimelineSection taskId={taskId} projectId={task.project_id} canLead={isLead} />
 
       {canDelete && (
         <button

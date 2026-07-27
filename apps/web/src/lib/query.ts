@@ -19,6 +19,7 @@ export const qk = {
   leadProjects: () => ['projects', 'lead'] as const, // v_my_lead_projects (D-038)
 
   board: (projectId: string) => ['board', projectId] as const,
+  doneTasks: (projectId: string) => ['board', projectId, 'done'] as const,
   myTasks: () => ['my-tasks'] as const,
   task: (taskId: string) => ['task', taskId] as const,
   taskTimeline: (taskId: string) => ['task', taskId, 'timeline'] as const,

@@ -1,18 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Send } from 'lucide-react'
-import { useSession } from '@/features/auth/session'
-import { useProjectMembers, type BoardMember } from '@/features/board/use-board'
-import { Button, Spinner } from '@/components/ui'
+import { type BoardMember } from '@/features/board/use-board'
+import { Button } from '@/components/ui'
 import { relativeTime } from '@/lib/date'
 import { cn } from '@/lib/cn'
-import {
-  useComments,
-  useAddComment,
-  useEditComment,
-  useDeleteComment,
-  extractMentions,
-  type Comment,
-} from './use-comments'
+import { useEditComment, useDeleteComment, extractMentions, type Comment } from './use-comments'
 
 /**
  * US-602 — 댓글 UI.
@@ -26,7 +18,7 @@ const URL_RE = /(https?:\/\/[^\s<>"')\]]+)/g
 function CommentBody({ text }: { text: string }) {
   const parts = text.split(URL_RE)
   return (
-    <p className="text-xs whitespace-pre-wrap break-words">
+    <p className="text-xs whitespace-pre-wrap wrap-break-word">
       {parts.map((p, i) =>
         i % 2 === 1 ? (
           <a
@@ -54,7 +46,7 @@ function mentionQueryAt(value: string, caret: number): { start: number; query: s
   return { start: m.index, query: m[1] }
 }
 
-function MentionInput({
+export function MentionInput({
   members,
   busy,
   placeholder,
@@ -193,24 +185,24 @@ function MentionInput({
   )
 }
 
-function CommentItem({
+export function CommentItem({
   comment,
   members,
   canLead,
   taskId,
+  isMine,
 }: {
   comment: Comment
   members: BoardMember[]
   canLead: boolean
   taskId: string
+  isMine: boolean
 }) {
-  const { userId } = useSession()
   const edit = useEditComment(taskId)
   const del = useDeleteComment(taskId)
   const [editing, setEditing] = useState(false)
   const [armed, setArmed] = useState(false)
 
-  const isMine = comment.user_id === userId
   const edited = comment.updated_at > comment.created_at
 
   // 삭제는 2단 확인 — 다이얼로그 없이 그 자리에서 (3초 뒤 해제)
@@ -274,45 +266,5 @@ function CommentItem({
   )
 }
 
-export function CommentsSection({
-  taskId,
-  projectId,
-  canLead,
-}: {
-  taskId: string
-  projectId: string | null
-  canLead: boolean
-}) {
-  const { data: comments, isPending } = useComments(taskId)
-  const { data: members = [] } = useProjectMembers(projectId ?? '')
-  const add = useAddComment(taskId)
-
-  return (
-    <section className="border-t border-border pt-3">
-      <h3 className="mb-3 text-xs font-semibold text-fg-muted">
-        댓글{comments?.length ? ` ${comments.length}` : ''}
-      </h3>
-
-      {isPending ? (
-        <Spinner />
-      ) : comments?.length ? (
-        <ul className="mb-4 flex flex-col gap-3">
-          {comments.map((c) => (
-            <CommentItem key={c.id} comment={c} members={members} canLead={canLead} taskId={taskId} />
-          ))}
-        </ul>
-      ) : (
-        <p className="mb-4 text-xs text-fg-subtle">
-          아직 댓글이 없어요. @이름 으로 멤버를 부를 수 있어요.
-        </p>
-      )}
-
-      <MentionInput
-        members={members}
-        busy={add.isPending}
-        placeholder="댓글 쓰기 · @이름 으로 멘션"
-        onSubmit={(body) => add.mutate({ body, mentions: extractMentions(body, members) })}
-      />
-    </section>
-  )
-}
+// 목록·입력을 한데 묶는 섹션은 timeline.tsx 에 있다 —
+// 댓글만 따로 보여줄 화면은 없기 때문이다 (US-603 AC-1).
