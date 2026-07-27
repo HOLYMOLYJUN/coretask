@@ -1,7 +1,11 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { BellOff } from 'lucide-react'
+import { BellOff, BellRing, Smartphone } from 'lucide-react'
+import { toast } from 'sonner'
 import { Spinner, EmptyState, Button } from '@/components/ui'
 import { relativeTime } from '@/lib/date'
+import { useSession } from '@/features/auth/session'
+import { pushState, enablePush, type PushState } from './push'
 import {
   useNotifications,
   useMarkRead,
@@ -17,6 +21,55 @@ import { cn } from '@/lib/cn'
  * 데스크톱은 벨에서, 모바일은 하단 탭에서 진입한다 (IA §3.7).
  * 알림 클릭 = 읽음 처리 + 해당 화면으로 착지.
  */
+/**
+ * 푸시 켜기 배너 (US-802).
+ * 문구는 "설정하세요" 가 아니라 이득을 말한다 (User Flow §2).
+ * 권한이 미설정인 동안 계속 보인다 — 닫기 버튼을 주면 영영 안 켠다.
+ */
+function PushBanner() {
+  const { userId } = useSession()
+  const [state, setState] = useState<PushState>(() => pushState())
+  const [busy, setBusy] = useState(false)
+
+  if (state === 'granted' || state === 'unsupported' || state === 'denied') return null
+
+  if (state === 'ios-needs-install') {
+    return (
+      <div className="mt-4 flex items-start gap-3 rounded-md border border-border bg-bg-subtle px-4 py-3">
+        <Smartphone size={18} strokeWidth={1.75} className="mt-0.5 shrink-0 text-fg-muted" />
+        <p className="text-xs text-fg-muted">
+          <b className="text-fg">홈 화면에 추가</b>하면 업무 배정을 바로 알 수 있어요.
+          <br />
+          공유 버튼 → <b className="text-fg">홈 화면에 추가</b>를 눌러주세요.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-4 flex items-center gap-3 rounded-md border border-border bg-bg-subtle px-4 py-3">
+      <BellRing size={18} strokeWidth={1.75} className="shrink-0 text-primary" />
+      <p className="flex-1 text-xs text-fg-muted">알림을 켜면 업무 배정을 바로 알 수 있어요</p>
+      <Button
+        variant="primary"
+        className="px-3 py-1.5 text-xs"
+        disabled={busy}
+        onClick={async () => {
+          if (!userId) return
+          setBusy(true)
+          const r = await enablePush(userId).catch(() => 'unsupported' as const)
+          setBusy(false)
+          setState(r)
+          if (r === 'granted') toast.success('알림이 켜졌어요')
+          if (r === 'denied') toast.error('브라우저 설정에서 알림 권한을 허용해야 해요')
+        }}
+      >
+        알림 켜기
+      </Button>
+    </div>
+  )
+}
+
 export function NotificationsPage() {
   const { data, isPending } = useNotifications()
   const markRead = useMarkRead()
@@ -44,6 +97,8 @@ export function NotificationsPage() {
           </Button>
         )}
       </div>
+
+      <PushBanner />
 
       {list.length === 0 ? (
         <EmptyState

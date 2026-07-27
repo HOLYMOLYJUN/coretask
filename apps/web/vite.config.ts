@@ -27,6 +27,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // 푸시 수신 핸들러 (US-802). 생성된 SW 에 덧붙는다
+        importScripts: ['push-sw.js'],
         // D-019b: 앱 셸만 캐시한다.
         // ⚠️ woff2 는 제외한다 (D-056).
         // Pretendard 다이나믹 서브셋은 92개 조각(합계 ~2.8MB)이다.
