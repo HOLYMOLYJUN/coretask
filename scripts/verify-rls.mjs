@@ -103,7 +103,7 @@ const { data: proj, error: pErr } = await alice.rpc('create_project', { p_name: 
 check('프로젝트 생성 (create_project RPC)', !!proj?.id, pErr?.message)
 {
   const { error } = await bob.rpc('create_project', { p_name: 'Bob 프로젝트' })
-  check('WS Admin 아니면 프로젝트 생성 불가', errCode(error) === 'NO_WORKSPACE' || errCode(error) === 'FORBIDDEN', error?.message)
+  check('WS Admin 아니면 프로젝트 생성 불가', errCode(error) === 'NO_WORKSPACE' || errCode(error) === 'FORBIDDEN_PROJECT', error?.message)
 }
 
 {
@@ -173,7 +173,7 @@ await alice.from('tasks').update({ assignee_id: bobId, due_date: '2026-08-30' })
   const { error } = await bob.from('tasks').update({ status: 'done' }).eq('id', task.id)
   check(
     '🔴 팀원은 done 으로 못 옮긴다 (D-007)',
-    errCode(error) === 'INVALID_TRANSITION' || errCode(error) === 'FORBIDDEN',
+    errCode(error) === 'INVALID_TRANSITION' || errCode(error) === 'FORBIDDEN_DONE',
     error?.message ?? '옮겨져버렸다',
   )
 }
@@ -216,7 +216,12 @@ const { data: t2 } = await alice
     .select()
     .single()
   const { error } = await bob.from('tasks').update({ assignee_id: bobId }).eq('id', t3.id)
-  check('팀원이 남의 업무를 뺏을 수 없다 (EC-7)', errCode(error) === 'FORBIDDEN', error?.message)
+  check('팀원이 남의 업무를 뺏을 수 없다 (EC-7)', errCode(error) === 'FORBIDDEN_CLAIM', error?.message)
+
+  // 거부 코드는 상황마다 달라야 한다 — 하나로 묶여 있던 동안 삭제를 거부당한 사람이
+  // "리뷰중으로 올려주세요" 를 읽었다 (10-UX-AUDIT §7 · 마이그레이션 26)
+  const { error: dErr } = await bob.rpc('delete_task', { p_task: t3.id })
+  check('삭제 거부는 FORBIDDEN_DELETE 로 구분된다 (US-302 AC-3)', errCode(dErr) === 'FORBIDDEN_DELETE', dErr?.message ?? '지워져버렸다')
 }
 
 // ── 7. 마지막 Lead 보호 ──────────────────────────────────────

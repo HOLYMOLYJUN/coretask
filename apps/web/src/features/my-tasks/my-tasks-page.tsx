@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useLocation } from 'react-router'
+import { useNavigate, useLocation, useSearchParams } from 'react-router'
 import {
   DndContext,
   DragOverlay,
@@ -11,7 +11,7 @@ import {
   useDraggable,
   type DragEndEvent,
 } from '@dnd-kit/core'
-import { Lock } from 'lucide-react'
+import { Lock, LayoutGrid, List } from 'lucide-react'
 import { toast } from 'sonner'
 import type { EnrichedTask, TaskStatus } from '@/lib/supabase'
 import { MESSAGE } from '@/lib/errors'
@@ -19,6 +19,7 @@ import { TaskCard } from '@/features/board/task-card'
 import { STATUS_LABEL } from '@/components/status'
 import { Spinner, EmptyState, Button } from '@/components/ui'
 import { useMyTasks, useLeadProjectIds, useChangeStatus, nextAction } from './use-my-tasks'
+import { TaskListView } from './list-view'
 import { cn } from '@/lib/cn'
 
 const COLS: TaskStatus[] = ['todo', 'in_progress', 'in_review', 'done']
@@ -31,6 +32,7 @@ const COLS: TaskStatus[] = ['todo', 'in_progress', 'in_review', 'done']
 export function MyTasksPage() {
   const nav = useNavigate()
   const loc = useLocation()
+  const [sp, setSp] = useSearchParams()
   const { data, isPending } = useMyTasks()
   const { data: leadIds } = useLeadProjectIds()
   const change = useChangeStatus()
@@ -42,6 +44,26 @@ export function MyTasksPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor),
   )
+
+  // 리스트 뷰는 내 것으로 좁히지 않는다 — 보드 데이터를 기다릴 이유가 없다 (US-504)
+  const view = sp.get('view') === 'list' ? 'list' : 'board'
+
+  /** 뷰만 바꾸고 나머지 파라미터(필터·정렬)는 건드리지 않는다 */
+  function setView(next: 'board' | 'list') {
+    const p = new URLSearchParams(sp)
+    if (next === 'list') p.set('view', 'list')
+    else p.delete('view')
+    setSp(p, { replace: true })
+  }
+
+  if (view === 'list') {
+    return (
+      <div className="px-4 py-6 md:px-6">
+        <Header view={view} onView={setView} />
+        <TaskListView />
+      </div>
+    )
+  }
 
   if (isPending) return <Spinner />
 
@@ -62,7 +84,7 @@ export function MyTasksPage() {
 
     // 완료 컬럼 — Lead 인 프로젝트의 카드만 (US-501 AC-5)
     if (to === 'done' && !canFinish(task)) {
-      toast.error(MESSAGE.FORBIDDEN)
+      toast.error(MESSAGE.FORBIDDEN_DONE)
       return
     }
     // 시작 안 한 업무는 리뷰로 못 간다 — DB도 막지만 왕복 없이 바로 말해준다
@@ -77,10 +99,10 @@ export function MyTasksPage() {
   if (!tasks.length) {
     return (
       <div className="px-4 py-6 md:px-6">
-        <h1 className="text-xl font-semibold">내 업무</h1>
+        <Header view={view} onView={setView} />
         <EmptyState
           title="아직 배정된 업무가 없어요"
-          description="프로젝트 보드에서 업무를 가져올 수 있어요"
+          description="프로젝트 보드에서 업무를 가져오거나, 리스트에서 팀 업무를 볼 수 있어요"
         />
       </div>
     )
@@ -88,7 +110,7 @@ export function MyTasksPage() {
 
   return (
     <div className="px-4 py-6 md:px-6">
-      <h1 className="text-xl font-semibold">내 업무</h1>
+      <Header view={view} onView={setView} />
 
       {/* ── 데스크톱: 상태 컬럼 드래그 ─────────────────────── */}
       <div className="mt-4 hidden md:block">
@@ -179,6 +201,43 @@ export function MyTasksPage() {
             </p>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * 뷰 전환 (US-504 AC-1).
+ * 보드가 기본이다 — `내 업무` 로 들어온 사람의 첫 질문은 "내가 뭘 하지" 지
+ * "팀이 뭘 하지" 가 아니다. 리스트는 그다음 질문의 자리다.
+ */
+function Header({
+  view,
+  onView,
+}: {
+  view: 'board' | 'list'
+  onView: (v: 'board' | 'list') => void
+}) {
+  const tab = (v: 'board' | 'list', icon: React.ReactNode, label: string) => (
+    <button
+      onClick={() => onView(v)}
+      aria-pressed={view === v}
+      className={cn(
+        'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-colors',
+        view === v ? 'bg-bg font-semibold text-fg' : 'text-fg-muted hover:text-fg',
+      )}
+    >
+      {icon}
+      {label}
+    </button>
+  )
+
+  return (
+    <div className="flex items-center gap-3">
+      <h1 className="text-xl font-semibold">내 업무</h1>
+      <div className="ml-auto flex items-center gap-0.5 rounded-md border border-border bg-bg-subtle p-0.5">
+        {tab('board', <LayoutGrid size={14} strokeWidth={1.75} />, '보드')}
+        {tab('list', <List size={14} strokeWidth={1.75} />, '리스트')}
       </div>
     </div>
   )

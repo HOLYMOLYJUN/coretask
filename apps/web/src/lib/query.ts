@@ -21,7 +21,13 @@ export const qk = {
 
   board: (projectId: string) => ['board', projectId] as const,
   doneTasks: (projectId: string) => ['board', projectId, 'done'] as const,
+  /** 보드 컬럼 하단에 접혀 있는 최근 완료 (US-405). doneTasks 의 하위 키라 함께 무효화된다 */
+  recentDone: (projectId: string) => ['board', projectId, 'done', 'recent'] as const,
   myTasks: () => ['my-tasks'] as const,
+  /** 리스트 뷰 (US-504) — 필터가 곧 쿼리라 키에 그대로 싣는다 */
+  taskList: (filters: Record<string, string | null>) => ['task-list', filters] as const,
+  /** 내가 속한 프로젝트의 사람 전원 — 담당자 필터의 선택지 (US-504 AC-2) */
+  visiblePeople: () => ['people', 'visible'] as const,
   task: (taskId: string) => ['task', taskId] as const,
   taskTimeline: (taskId: string) => ['task', taskId, 'timeline'] as const,
   comments: (taskId: string) => ['task', taskId, 'comments'] as const,

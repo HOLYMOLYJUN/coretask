@@ -622,6 +622,8 @@ Meeting     id, projectId, title, date, participants, decisions, createdBy
 | D-054 | **Pretendard(로컬) + Montserrat(CDN).** 최소 14px, 12px 뱃지 전용, 상한 24px | ✅ 확정 | 09 §2. 와이어프레임의 11~12px 카드 텍스트는 전부 상향 |
 | D-055 | **shadow 금지.** border + 스크림으로 층 표현 (예외: 드래그 중 카드) | ✅ 확정 | 09 §4. hover 시 배경/테두리 변화만, transform 금지 |
 | D-056 | **Pretendard 다이나믹 서브셋** 자체 호스팅 (92조각). `woff2` 는 SW precache 제외 | ✅ 확정 | 전체본 2,009KB → 실사용 90~250KB. 가변 축 유지. 92개 precache 는 2.8MB라 오히려 손해 |
+| D-057 | **에러는 코드로 구분한다. `:` 뒤 설명 문자열로 분기하지 않는다** | ✅ 확정 | 권한 거부를 `FORBIDDEN` 하나로 던지니 클라이언트가 문구를 하나밖에 고를 수 없었고, 삭제를 거부당한 사람이 "리뷰중으로 올려주세요"를 읽었다. 구분이 필요하면 **코드를 늘린다** (마이그레이션 26 · 06-API §6) |
+| D-058 | **UI 의 권한 판정 근거는 서버 함수 하나뿐이다** (`is_project_lead` / `v_my_lead_projects`) | ✅ 확정 | 보드가 `project_members` 만 보는 동안 WS Admin 은 서버에서 다 통과하는데 UI 가 드래그를 막았다. 판정을 두 곳에 두면 반드시 어긋난다 — §9 의 "함수 2개로 단일화" 가 프론트에도 적용된다 |
 
 ---
 

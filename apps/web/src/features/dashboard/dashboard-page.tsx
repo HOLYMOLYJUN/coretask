@@ -4,6 +4,7 @@ import { supabase, type EnrichedTask } from '@/lib/supabase'
 import { qk } from '@/lib/query'
 import { useSession, useMe } from '@/features/auth/session'
 import { useProjects } from '@/features/projects/use-projects'
+import { InstallHint } from '@/features/onboarding/install-hint'
 import { StatusDot } from '@/components/status'
 import { Card, EmptyState, Spinner, Button, Badge } from '@/components/ui'
 import { dueLabel, dueWithWeekday, toDateStr } from '@/lib/date'
@@ -55,10 +56,19 @@ export function DashboardPage() {
   )
   const open = (id: string) => nav(`/tasks/${id}`, { state: { backgroundLocation: loc } })
 
-  // 소속 프로젝트가 0개면 대시보드 대신 안내 (US-103)
-  if ((projects.data?.length ?? 0) === 0) {
+  /**
+   * 소속 프로젝트가 0개면 대시보드 대신 안내 (US-103 AC-1).
+   *
+   * ⚠️ `개인 업무` 를 빼고 센다. 워크스페이스에 합류하면 누구에게나 개인 업무
+   * 프로젝트가 자동 생성되므로(마이그레이션 17) 목록이 0이 되는 일이 없다 —
+   * 이 분기는 여태 한 번도 실행되지 않았다. 여기서 묻는 것은
+   * "팀의 일이 하나라도 있는가" 다.
+   */
+  const teamProjects = (projects.data ?? []).filter((p) => !p.is_personal)
+  if (teamProjects.length === 0) {
     return (
       <div className="px-4 py-6 md:px-6">
+        <InstallHint />
         <Card>
           <EmptyState
             icon={<FolderPlus size={32} strokeWidth={1.5} />}
@@ -69,7 +79,12 @@ export function DashboardPage() {
                 <Link to="/projects">
                   <Button variant="primary">프로젝트 만들기</Button>
                 </Link>
-              ) : undefined
+              ) : (
+                // 팀 프로젝트가 없어도 개인 업무는 있다 — 갈 곳 없이 세워두지 않는다
+                <Link to="/tasks">
+                  <Button>개인 업무 보기</Button>
+                </Link>
+              )
             }
           />
         </Card>
@@ -79,6 +94,7 @@ export function DashboardPage() {
 
   return (
     <div className="px-4 py-6 md:px-6">
+      <InstallHint />
       <h1 className="text-xl font-semibold">대시보드</h1>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">

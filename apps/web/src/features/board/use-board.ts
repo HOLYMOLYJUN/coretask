@@ -56,6 +56,38 @@ export function useBoard(projectId: string) {
   return { members, tasks }
 }
 
+/** 보드 컬럼에서 완료 카드를 빼고 세는 기준일 수 (US-405 AC-2) */
+export const DONE_WINDOW_DAYS = 7
+
+/**
+ * 컬럼 하단에 접어 두는 최근 완료 (US-405).
+ *
+ * 위 useBoard 와 키를 나눈다. 같은 배열에 섞으면 필터 칩 건수(`전체`)가 부풀고,
+ * 완료 카드가 드래그 대상이 되어 순서 계산에 끼어든다 — 보드의 진실은
+ * "지금 굴러가는 일" 이다.
+ *
+ * 7일이 지난 것은 펼쳐도 나오지 않는다 (AC-2). 그건 프로젝트 > 완료된 업무의 일이다 —
+ * 끝난 일이 컬럼 아래 무한히 쌓이면 접어 둔 의미가 없다.
+ */
+export function useRecentDone(projectId: string) {
+  return useQuery({
+    queryKey: qk.recentDone(projectId),
+    enabled: !!projectId,
+    queryFn: async (): Promise<EnrichedTask[]> => {
+      const since = new Date(Date.now() - DONE_WINDOW_DAYS * 86_400_000).toISOString()
+      const { data, error } = await supabase
+        .from('v_tasks_enriched')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('status', 'done')
+        .gte('completed_at', since)
+        .order('completed_at', { ascending: false })
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+
 export interface MoveInput {
   taskId: string
   assigneeId: string | null

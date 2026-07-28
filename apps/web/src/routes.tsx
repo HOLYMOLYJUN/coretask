@@ -7,6 +7,7 @@ import { InviteAcceptPage } from '@/features/invite/accept-page'
 import { useMe, useSession } from '@/features/auth/session'
 import { Spinner } from '@/components/ui'
 import { ProjectsPage } from '@/features/projects/projects-page'
+import { ProjectOverviewPage } from '@/features/projects/overview-page'
 import { BoardPage } from '@/features/board/board-page'
 import { ProjectDonePage } from '@/features/board/done-page'
 import { DocumentsPage } from '@/features/documents/documents-page'
@@ -15,6 +16,7 @@ import { MyTasksPage } from '@/features/my-tasks/my-tasks-page'
 import { TaskPage, TaskPanel } from '@/features/task/task-detail'
 import { NotificationsPage } from '@/features/notifications/notifications-page'
 import { SettingsPage } from '@/features/settings/settings-page'
+import { MorePage } from '@/features/more/more-page'
 import { Placeholder } from '@/components/placeholder'
 
 /**
@@ -45,12 +47,14 @@ export function AppRoutes() {
               <Route index element={<DashboardPage />} />
               <Route path="/tasks" element={<MyTasksPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
+              {/* 개요가 프로젝트의 집이다 (US-203). 보드는 그 안의 한 화면 */}
+              <Route path="/projects/:projectId" element={<ProjectOverviewPage />} />
               <Route path="/projects/:projectId/board" element={<BoardPage />} />
               <Route path="/projects/:projectId/done" element={<ProjectDonePage />} />
               <Route path="/projects/:projectId/docs" element={<DocumentsPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/more" element={<Placeholder title="더보기" />} />
+              <Route path="/more" element={<MorePage />} />
 
               {/* 전체 페이지 — 알림 · 직접 URL · 새로고침 */}
               <Route path="/tasks/:taskId" element={<TaskPage />} />

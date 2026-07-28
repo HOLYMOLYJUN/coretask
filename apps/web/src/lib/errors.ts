@@ -11,7 +11,19 @@
 
 export const MESSAGE: Record<string, string> = {
   INVALID_TRANSITION: '완료 확정은 리뷰를 거쳐야 합니다. 먼저 리뷰중으로 올려주세요',
-  FORBIDDEN: '완료 확정은 Lead가 합니다. 리뷰중으로 올려주세요',
+  /**
+   * 권한 거부는 상황마다 다음 행동이 다르다.
+   * 하나로 묶여 있던 동안 삭제를 거부당한 사람이 "리뷰중으로 올려주세요" 를 읽었다
+   * (10-UX-AUDIT §7). 서버가 코드로 상황을 구분한다 — 마이그레이션 26.
+   */
+  FORBIDDEN_ASSIGN: '배정은 Lead가 합니다. 미배정 업무는 직접 가져갈 수 있어요',
+  FORBIDDEN_CLAIM: '이미 담당자가 있는 업무예요. 미배정 업무만 가져갈 수 있어요',
+  FORBIDDEN_DONE: '완료 확정은 Lead가 합니다. 리뷰중으로 올려주세요',
+  FORBIDDEN_DELETE: '삭제는 Lead가 합니다. 본인이 만든 미배정 업무는 직접 지울 수 있어요',
+  FORBIDDEN_REVIEW: '리뷰 처리는 Lead가 합니다. 담당 Lead에게 알려주세요',
+  FORBIDDEN_PROJECT: '프로젝트 생성은 워크스페이스 관리자가 합니다',
+  /** 아직 코드가 나뉘지 않은 경로 · 마이그레이션 26 이전 DB 대비 */
+  FORBIDDEN: '이 작업은 Lead 권한이 필요해요',
   INVALID_ASSIGNEE: '이 사람은 프로젝트 멤버가 아니에요. 먼저 프로젝트에 추가해주세요',
   LAST_LEAD: '프로젝트에는 최소 1명의 Lead가 필요합니다',
   LAST_OWNER: '워크스페이스에는 최소 1명의 Owner가 필요합니다',

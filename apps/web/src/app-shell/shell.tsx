@@ -178,7 +178,8 @@ export function AppShell() {
       </aside>
 
       {/* ── 본문 ──────────────────────────────────────────── */}
-      <div className="flex min-h-dvh flex-col pb-14 md:pb-0">
+      {/* 본문 아래 여백 = 탭바 높이 + 세이프존. 탭바가 마지막 카드를 덮지 않게 */}
+      <div className="flex min-h-dvh flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0">
         <header className="flex items-center gap-3 border-b border-border px-4 py-3 md:px-6">
           <div className="flex-1" />
           <NavLink
@@ -206,8 +207,13 @@ export function AppShell() {
         </main>
       </div>
 
-      {/* ── 하단 탭 (모바일) — IA §6 ────────────────────────── */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-border bg-bg md:hidden">
+      {/* ── 하단 탭 (모바일) — IA §6 ──────────────────────────
+          홈 인디케이터 세이프존 처리: **배경은 바닥까지, 내용만 위로 올린다.**
+          바 자체를 띄우면 그 아래로 본문이 비쳐 보이고, 탭이 바닥에 딱 붙으면
+          홈 인디케이터와 겹쳐 오탭이 난다. env() 는 해당 기기에서만 값이 생기므로
+          인디케이터가 없는 기기에서는 아무것도 달라지지 않는다.
+          (index.html 의 `viewport-fit=cover` 가 있어야 값이 0이 아니다) */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-border bg-bg pb-[env(safe-area-inset-bottom)] md:hidden">
         <MobileTab
           to="/"
           end

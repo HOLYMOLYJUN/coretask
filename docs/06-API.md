@@ -455,7 +455,13 @@ function parseDbError(e: PostgrestError): { code: string; detail: string } {
 | 코드 | 발생 지점 | 사용자에게 보여줄 문구 | UI 처리 |
 |---|---|---|---|
 | `INVALID_TRANSITION` | 상태 전이 트리거 | **완료 확정은 리뷰를 거쳐야 합니다. 먼저 리뷰중으로 올려주세요** | 카드 원위치 + 토스트 |
-| `FORBIDDEN` | 상태·배정 트리거 | **완료 확정은 Lead가 합니다. 리뷰중으로 올려주세요** | 카드 원위치 + 토스트 |
+| `FORBIDDEN_ASSIGN` | 배정 트리거 | **배정은 Lead가 합니다. 미배정 업무는 직접 가져갈 수 있어요** | 카드 원위치 + 토스트 |
+| `FORBIDDEN_CLAIM` | 배정 트리거 | **이미 담당자가 있는 업무예요. 미배정 업무만 가져갈 수 있어요** | 〃 |
+| `FORBIDDEN_DONE` | 상태 전이 트리거 | **완료 확정은 Lead가 합니다. 리뷰중으로 올려주세요** | 〃 |
+| `FORBIDDEN_DELETE` | `tg_task_delete_validate` | **삭제는 Lead가 합니다. 본인이 만든 미배정 업무는 직접 지울 수 있어요** | 토스트 |
+| `FORBIDDEN_REVIEW` | `reject_task` | **리뷰 처리는 Lead가 합니다. 담당 Lead에게 알려주세요** | 토스트 |
+| `FORBIDDEN_PROJECT` | `create_project` | **프로젝트 생성은 워크스페이스 관리자가 합니다** | 토스트 |
+| `FORBIDDEN` | 남은 경로 | **이 작업은 Lead 권한이 필요해요** | 토스트 |
 | `INVALID_ASSIGNEE` | 배정 트리거 | **이 사람은 프로젝트 멤버가 아니에요. 먼저 프로젝트에 추가해주세요** | 원위치 + 멤버 추가 링크 |
 | `LAST_LEAD` | `tg_guard_last_lead` | **프로젝트에는 최소 1명의 Lead가 필요합니다** | 드롭다운 되돌림 |
 | `LAST_OWNER` | `tg_guard_last_owner` | **워크스페이스에는 최소 1명의 Owner가 필요합니다** | 〃 |
@@ -473,6 +479,9 @@ function parseDbError(e: PostgrestError): { code: string; detail: string } {
 
 **문구 규칙 3개**
 1. **무엇이 잘못됐는지 + 어떻게 하면 되는지**를 한 문장에 담는다. `FORBIDDEN` 을 "권한이 없습니다"로 끝내지 않는다.
+   → 그러려면 **서버가 상황을 코드로 구분해야 한다.** 권한 거부를 `FORBIDDEN` 하나로 던지던 동안
+   클라이언트는 문구를 하나밖에 고를 수 없었고, 삭제를 거부당한 사람이 "리뷰중으로 올려주세요" 를
+   읽었다 (10-UX-AUDIT §7). **`:` 뒤 설명으로 분기하지 않는다** — 구분이 필요하면 코드를 늘린다.
 2. **사과하지 않는다.** "죄송합니다"는 정보가 0이다.
 3. **DB 코드를 노출하지 않는다.** 사용자는 `INVALID_TRANSITION` 을 읽을 이유가 없다.
 

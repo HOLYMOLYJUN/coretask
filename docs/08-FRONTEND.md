@@ -261,7 +261,8 @@ export const queryClient = new QueryClient({
 // lib/errors.ts
 export const MESSAGE: Record<string, string> = {
   INVALID_TRANSITION: '완료 확정은 리뷰를 거쳐야 합니다. 먼저 리뷰중으로 올려주세요',
-  FORBIDDEN:          '완료 확정은 Lead가 합니다. 리뷰중으로 올려주세요',
+  FORBIDDEN_DONE:     '완료 확정은 Lead가 합니다. 리뷰중으로 올려주세요',
+  FORBIDDEN_DELETE:   '삭제는 Lead가 합니다. 본인이 만든 미배정 업무는 직접 지울 수 있어요',
   INVALID_ASSIGNEE:   '이 사람은 프로젝트 멤버가 아니에요. 먼저 프로젝트에 추가해주세요',
   LAST_LEAD:          '프로젝트에는 최소 1명의 Lead가 필요합니다',
   // … API §6 전체
@@ -269,6 +270,9 @@ export const MESSAGE: Record<string, string> = {
 ```
 
 - **문구를 컴포넌트에 흩지 않는다.** 같은 에러가 보드·상세·리스트 세 곳에서 난다.
+- **상황이 다르면 코드를 나눈다.** `:` 뒤 설명 문자열로 분기하지 않는다 — 문구를 고칠 때마다
+  계약이 조용히 깨진다. 권한 거부 하나로 묶여 있던 동안, 삭제를 거부당한 사람이
+  "리뷰중으로 올려주세요" 를 읽었다 (10-UX-AUDIT §7 · 마이그레이션 26).
 - **DB 코드를 사용자에게 노출하지 않는다.**
 - `PGRST116`(0건) 은 **404로 다룬다** — 권한 없음을 알리면 리소스 존재가 유출된다 (D-032).
 

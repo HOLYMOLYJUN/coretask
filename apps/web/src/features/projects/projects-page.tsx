@@ -120,7 +120,9 @@ function ProjectRow({ s }: { s: Stats }) {
 
   return (
     <Card className="flex items-center gap-2 px-4 py-3 transition-colors hover:bg-bg-subtle">
-      <Link to={`/projects/${s.project_id}/board`} className="min-w-0 flex-1">
+      {/* 목록에서는 개요로 (US-203). 보드로 바로 가는 길은 사이드바 트리가 맡는다 —
+          배정 보드가 3클릭 깊이에 있으면 안 된다는 D-030 은 그쪽에서 지켜진다 */}
+      <Link to={`/projects/${s.project_id}`} className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="text-base font-medium">{s.name}</span>
           {s.is_personal && (
@@ -272,7 +274,9 @@ function CreateProjectDialog({ onClose }: { onClose: () => void }) {
     onSuccess: (project) => {
       qc.invalidateQueries({ queryKey: qk.projects() })
       onClose()
-      if (project?.id) nav(`/projects/${project.id}/board`)
+      // US-201 AC-4 — 개요로 보낸다. 빈 보드에 떨어뜨리면 다음 행동이 안 보인다.
+      // 개요가 생기기 전에는 목적지가 보드였다 (10-UX-AUDIT §3 → §7)
+      if (project?.id) nav(`/projects/${project.id}`)
     },
     onError: (e) => toast.error(parseDbError(e).message),
   })

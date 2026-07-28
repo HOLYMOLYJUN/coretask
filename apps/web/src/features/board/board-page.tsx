@@ -21,11 +21,19 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, Info, CheckCheck, Users, FileText } from 'lucide-react'
+import { Plus, Info, CheckCheck, Users, FileText, ChevronRight } from 'lucide-react'
 import type { EnrichedTask } from '@/lib/supabase'
 import { useSession } from '@/features/auth/session'
 import { useLeadProjectIds } from '@/features/my-tasks/use-my-tasks'
-import { useBoard, useMoveTask, useClaimTask, useCreateTask, UNASSIGNED } from './use-board'
+import {
+  useBoard,
+  useRecentDone,
+  useMoveTask,
+  useClaimTask,
+  useCreateTask,
+  DONE_WINDOW_DAYS,
+  UNASSIGNED,
+} from './use-board'
 import { TaskCard } from './task-card'
 import { DuePopover } from './due-popover'
 import { MembersDialog } from './members-dialog'
@@ -52,6 +60,7 @@ export function BoardPage() {
   const [sp, setSp] = useSearchParams()
 
   const { members, tasks } = useBoard(projectId)
+  const recentDone = useRecentDone(projectId)
   const move = useMoveTask(projectId)
   const claim = useClaimTask(projectId)
   const create = useCreateTask(projectId)
@@ -84,17 +93,15 @@ export function BoardPage() {
   )
 
   const filter = (FILTERS.find((f) => f.key === sp.get('filter'))?.key ?? 'all') as Filter
-  const isLead = useMemo(
-    () => members.data?.some((m) => m.user_id === userId && m.role === 'lead') ?? false,
-    [members.data, userId],
-  )
   /**
-   * 멤버 관리 권한은 서버(is_project_lead)와 같은 기준으로 판정한다.
-   * 위 isLead 는 project_members 만 보므로, 프로젝트에 속하지 않은 워크스페이스
-   * Admin 을 놓친다 — 그 사람은 실제로는 관리할 수 있는데 버튼이 잠긴다.
+   * Lead 판정의 기준은 **서버의 `is_project_lead()` 하나뿐이다** (Foundation §9).
+   * `project_members.role = 'lead'` 만 보면 프로젝트에 속하지 않은 워크스페이스
+   * Admin/Owner 를 놓친다 — 그 사람은 서버에서 배정·완료확정·삭제가 전부 통과하는데
+   * UI 만 드래그를 막고 "배정은 Lead가 합니다" 안내를 띄웠다 (10-UX-AUDIT §7).
+   * `v_my_lead_projects` 가 그 분기를 이미 흡수하고 있으므로 그것만 본다 (D-038).
    */
-  const { data: leadIds } = useLeadProjectIds()
-  const canManageMembers = isLead || !!leadIds?.has(projectId)
+  const leadProjects = useLeadProjectIds()
+  const isLead = !!leadProjects.data?.has(projectId)
 
   const counts = useMemo(() => {
     const t = tasks.data ?? []
@@ -246,7 +253,9 @@ export function BoardPage() {
     nav(`/tasks/${taskId}`, { state: { backgroundLocation: loc } })
   }
 
-  if (members.isPending || tasks.isPending) return <Spinner />
+  // leadProjects 도 기다린다 — 이게 늦으면 Lead 에게 "배정은 Lead가 합니다" 가 깜빡이고
+  // 그 사이 드래그가 잠긴다
+  if (members.isPending || tasks.isPending || leadProjects.isPending) return <Spinner />
 
   const boardEmpty = (tasks.data?.length ?? 0) === 0
 
@@ -275,6 +284,14 @@ export function BoardPage() {
         })}
 
         <div className="ml-auto flex items-center gap-3">
+          {/* 이 프로젝트가 뭐고 어디까지 왔나 — 보드가 답하지 않는 질문 (US-203) */}
+          <Link
+            to={`/projects/${projectId}`}
+            className="flex items-center gap-1 text-xs text-fg-muted hover:text-fg"
+          >
+            <Info size={14} strokeWidth={1.75} />
+            개요
+          </Link>
           {/* 컬럼이 곧 사람이다 — 사람을 더하는 입구가 보드에 있어야 한다 (US-202) */}
           <button
             onClick={() => setManagingMembers(true)}
@@ -328,7 +345,7 @@ export function BoardPage() {
       {managingMembers && (
         <MembersDialog
           projectId={projectId}
-          canManage={canManageMembers}
+          canManage={isLead}
           onClose={() => setManagingMembers(false)}
         />
       )}
@@ -361,6 +378,7 @@ export function BoardPage() {
               highlight={col.isMe}
               boardEmpty={boardEmpty}
               tasks={list.filter((t) => colOf(t) === col.id)}
+              done={(recentDone.data ?? []).filter((t) => colOf(t) === col.id)}
               canDragTask={canDragTask}
               onOpen={openTask}
               onCreate={() => setCreating(col.id)}
@@ -417,6 +435,7 @@ function Column({
   id,
   name,
   tasks,
+  done,
   canDragTask,
   highlight,
   boardEmpty,
@@ -426,6 +445,8 @@ function Column({
   id: string
   name: string
   tasks: EnrichedTask[]
+  /** 최근 완료 — 기본적으로 접혀 있다 (US-405 AC-1) */
+  done: EnrichedTask[]
   canDragTask: (t: EnrichedTask) => boolean
   highlight?: boolean
   boardEmpty?: boolean
@@ -433,6 +454,7 @@ function Column({
   onCreate: () => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id })
+  const [showDone, setShowDone] = useState(false)
 
   return (
     <div className="flex w-64 shrink-0 flex-col">
@@ -469,6 +491,37 @@ function Column({
           )}
         </div>
       </SortableContext>
+
+      {/* 완료는 접어 둔다 (US-405 AC-1). 컬럼의 주인공은 아직 안 끝난 일이다 */}
+      {done.length > 0 && (
+        <div className="mt-1">
+          <button
+            onClick={() => setShowDone((v) => !v)}
+            aria-expanded={showDone}
+            className="flex w-full items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-fg-muted transition-colors hover:bg-bg-subtle hover:text-fg"
+          >
+            <ChevronRight
+              size={14}
+              strokeWidth={2}
+              className={cn('shrink-0 transition-transform', showDone && 'rotate-90')}
+            />
+            완료 <span className="num">{done.length}</span>건 {showDone ? '숨기기' : '보기'}
+          </button>
+
+          {showDone && (
+            <div className="mt-1 flex flex-col gap-2 opacity-60">
+              {done.map((t) => (
+                // 완료 카드는 끌 수 없다 — 되돌리기는 상세에서 Lead 가 한다 (D-007)
+                <TaskCard key={t.id} task={t} onClick={() => onOpen(t.id!)} />
+              ))}
+              {/* 링크는 상단 `완료된 업무` 하나로 충분하다 — 컬럼마다 반복하지 않는다 */}
+              <p className="px-1 text-center text-badge text-fg-subtle">
+                {DONE_WINDOW_DAYS}일이 지난 완료는 위 `완료된 업무` 에 있어요
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 생성은 모달이다 — 제목만 받으면 마감일 없는 업무가 계속 쌓인다 (10-UX-AUDIT §5-1) */}
       <Button
