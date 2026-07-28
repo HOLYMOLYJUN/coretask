@@ -46,3 +46,4 @@ node scripts/verify-rls.mjs   # 39개 전부 통과해야 앱 코드를 만진�
 | [07-SETUP](docs/07-SETUP.md) | Supabase 셋업 절차 |
 | [08-FRONTEND](docs/08-FRONTEND.md) · [09-DESIGN-SYSTEM](docs/09-DESIGN-SYSTEM.md) | 프론트 규약 · 디자인 토큰 |
 | [10-UX-AUDIT](docs/10-UX-AUDIT.md) | 실제 빌드를 조작해 확인한 PRD 대비 간극 · 처리 순서 |
+| [11-CALENDAR](docs/11-CALENDAR.md) | 📝 기획 — 기간(시작일) · 캘린더 뷰 · 쏠림 · 프로젝트 진척 |
