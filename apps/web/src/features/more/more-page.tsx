@@ -1,8 +1,8 @@
 import { Link, useNavigate } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { Folder, Lock, Settings, LogOut, ChevronRight } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
 import { useMe } from '@/features/auth/session'
+import { signOutEverywhere } from '@/features/auth/sign-out'
 import { useProjects } from '@/features/projects/use-projects'
 import { Card, Spinner } from '@/components/ui'
 import { Avatar } from '@/components/avatar'
@@ -23,9 +23,8 @@ export function MorePage() {
   const qc = useQueryClient()
 
   async function signOut() {
-    await supabase.auth.signOut()
-    // account-menu 와 같은 이유 — 캐시를 비우지 않으면 다음 사람이 이전 데이터를 본다
-    qc.clear()
+    // 데스크톱 계정 메뉴와 같은 경로를 쓴다 — 한쪽만 고치면 다른 쪽에서 사고가 난다
+    await signOutEverywhere(qc)
     nav('/login', { replace: true })
   }
 

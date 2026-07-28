@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { qk, queryClient } from '@/lib/query'
+import { reconcilePush } from '@/features/notifications/push'
 
 /**
  * 세션만 Context 로 둔다 (08-FRONTEND §3.1).
@@ -32,14 +33,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
      * 이전 사용자의 leadIds·업무·알림이 새 계정에 그대로 보인다.
      * 실제로 Member 에게 이전 Admin 세션의 "완료 확정" 버튼이 노출됐다 (2026-07-27).
      * AccountMenu 의 clear 는 정상 로그아웃 경로만 덮는다 — 여기가 최종 방어선이다.
+     *
+     * 🔴 캐시만으로는 부족했다. **푸시 구독은 브라우저에 남는다.**
+     * queryClient 가 닿지 못하는 곳이라, 계정을 바꿔도 이전 사용자 앞으로 온 알림이
+     * 계속 떴다 (2026-07-28). 같은 자리에서 구독도 함께 맞춘다.
      */
     const apply = (s: Session | null) => {
       const uid = s?.user.id ?? null
-      if (prevUser.current !== undefined && prevUser.current !== uid) {
+      const changed = prevUser.current !== uid
+      if (prevUser.current !== undefined && changed) {
         queryClient.clear()
       }
       prevUser.current = uid
       setSession(s)
+      // 토큰 갱신 때마다 돌지 않게 계정이 실제로 바뀐 순간에만
+      if (changed && uid) void reconcilePush()
     }
 
     supabase.auth.getSession().then(({ data }) => {

@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { LogOut } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
 import { useMe } from '@/features/auth/session'
+import { signOutEverywhere } from '@/features/auth/sign-out'
 
 export function AccountMenu() {
   const { data: me } = useMe()
@@ -29,11 +29,8 @@ export function AccountMenu() {
   }, [open])
 
   async function signOut() {
-    await supabase.auth.signOut()
-    // 🔴 캐시를 반드시 비운다.
-    // 남겨두면 다음에 로그인한 사람이 이전 사용자의 프로젝트·업무를 잠깐 보게 된다.
-    // RLS 는 서버를 지키지만 이미 브라우저에 내려온 데이터는 못 지운다.
-    qc.clear()
+    // 세션 · 캐시 · 푸시 구독을 한 번에 끊는다 (sign-out.ts)
+    await signOutEverywhere(qc)
     nav('/login', { replace: true })
   }
 
