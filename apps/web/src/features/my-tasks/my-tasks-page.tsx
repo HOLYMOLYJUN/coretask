@@ -234,7 +234,7 @@ function Header({
 
   return (
     <div className="flex items-center gap-3">
-      <h1 className="text-xl font-semibold">내 업무</h1>
+      <h1 className="hidden text-xl font-semibold md:block">내 업무</h1>
       <div className="ml-auto flex items-center gap-0.5 rounded-md border border-border bg-bg-subtle p-0.5">
         {tab('board', <LayoutGrid size={14} strokeWidth={1.75} />, '보드')}
         {tab('list', <List size={14} strokeWidth={1.75} />, '리스트')}

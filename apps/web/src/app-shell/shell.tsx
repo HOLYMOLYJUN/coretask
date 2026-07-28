@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard,
@@ -9,6 +9,7 @@ import {
   Bell,
   Smartphone,
   ChevronRight,
+  ChevronLeft,
   Lock,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -134,11 +135,37 @@ function ProjectTree({
   )
 }
 
+/**
+ * 모바일 헤더가 제목을 대신 드는 화면 (04-WIREFRAME §2 — `뒤로 + 제목 + 아바타`).
+ *
+ * 여기 있는 화면은 본문의 `h1` 을 모바일에서 숨긴다 (`hidden md:block`).
+ * 헤더가 좌측을 통째로 비운 채 아래에서 제목을 또 그리고 있었다 —
+ * 한 줄이 할 일에 두 줄을 쓰고 있었다.
+ *
+ * 제목이 건수·뱃지를 함께 이고 있는 화면(완료된 업무 · 문서 · 프로젝트 개요)은
+ * 넣지 않는다. 헤더로 옮기면 그 정보를 잃는다 — 그쪽은 뒤로가기만 얻는다.
+ */
+const MOBILE_TITLE: Record<string, string> = {
+  '/': '대시보드',
+  '/tasks': '내 업무',
+  '/notifications': '알림',
+  '/more': '더보기',
+  '/settings': '설정',
+  '/projects': '프로젝트',
+}
+
+/** 하단 탭의 목적지 — 여기서는 뒤로 갈 곳이 없다 */
+const TAB_ROOTS = new Set(['/', '/tasks', '/notifications', '/more'])
+
 export function AppShell() {
   const { data: count = 0 } = useMyTaskCount()
   const { data: unread = 0 } = useUnreadCount()
   const { data: projects = [] } = useProjects()
   const loc = useLocation()
+  const nav = useNavigate()
+
+  const title = MOBILE_TITLE[loc.pathname]
+  const canGoBack = !TAB_ROOTS.has(loc.pathname)
 
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[240px_minmax(0,1fr)]">
@@ -180,7 +207,18 @@ export function AppShell() {
       {/* ── 본문 ──────────────────────────────────────────── */}
       {/* 본문 아래 여백 = 탭바 높이 + 세이프존. 탭바가 마지막 카드를 덮지 않게 */}
       <div className="flex min-h-dvh flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0">
-        <header className="flex items-center gap-3 border-b border-border px-4 py-3 md:px-6">
+        <header className="flex items-center gap-2 border-b border-border px-4 py-3 md:gap-3 md:px-6">
+          {/* 뒤로 + 제목은 모바일 전용이다. 데스크톱은 사이드바가 현재 위치를 이미 말한다 */}
+          {canGoBack && (
+            <button
+              onClick={() => nav(-1)}
+              aria-label="뒤로"
+              className="-ml-2 shrink-0 rounded-full p-2 text-fg-muted transition-colors hover:bg-bg-subtle hover:text-fg md:hidden"
+            >
+              <ChevronLeft size={20} strokeWidth={1.75} />
+            </button>
+          )}
+          {title && <h1 className="truncate text-lg font-semibold md:hidden">{title}</h1>}
           <div className="flex-1" />
           <NavLink
             to="/notifications"

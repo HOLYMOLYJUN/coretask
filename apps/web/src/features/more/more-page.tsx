@@ -35,7 +35,7 @@ export function MorePage() {
 
   return (
     <div className="px-4 py-6">
-      <h1 className="text-xl font-semibold">더보기</h1>
+      <h1 className="hidden text-xl font-semibold md:block">더보기</h1>
 
       <Card className="mt-4 flex items-center gap-3 px-4 py-3">
         <Avatar name={me?.profile?.name ?? ''} url={me?.profile?.avatar_url} size={40} />

@@ -351,11 +351,54 @@ export function BoardPage() {
       )}
 
       {!isLead && (
-        <p className="flex items-center gap-2 border-b border-border bg-bg-subtle px-4 py-2 text-xs text-fg-muted md:px-6">
+        <p className="hidden items-center gap-2 border-b border-border bg-bg-subtle px-4 py-2 text-xs text-fg-muted md:flex md:px-6">
           <Info size={14} strokeWidth={1.75} />
           배정은 Lead가 합니다. 미배정 업무는 직접 가져갈 수 있어요
         </p>
       )}
+
+      {/* ── 모바일: 읽기 전용 (IA §6 · D-026) ────────────────────
+          배정 보드는 데스크톱 전용이다. 폰에서 사람 컬럼을 가로 스크롤시키면
+          카드 하나를 보려고 두 번 스크롤해야 하고, 드래그는 탭과 구분되지 않는다.
+          그래도 **조회는 필요하다** — `더보기` 에서 여기로 들어온다. */}
+      <div className="md:hidden">
+        <p className="flex items-center gap-2 border-b border-border bg-bg-subtle px-4 py-2 text-xs text-fg-muted">
+          <Info size={14} strokeWidth={1.75} />
+          배정은 PC에서 해주세요. 여기서는 보기만 할 수 있어요
+        </p>
+
+        <div className="flex flex-col gap-5 px-4 py-4">
+          {columns.map((col) => {
+            const items = visible.filter((t) => colOf(t) === col.id)
+            return (
+              <section key={col.id}>
+                <div
+                  className={cn(
+                    'mb-2 flex items-baseline justify-between border-b pb-1.5',
+                    col.isMe ? 'border-fg' : 'border-border-strong',
+                  )}
+                >
+                  <span className="text-base font-semibold">
+                    {col.name}
+                    {col.isMe && <span className="ml-1 text-fg-subtle">(나)</span>}
+                  </span>
+                  <span className="num text-xs text-fg-muted">{items.length}</span>
+                </div>
+
+                {items.length ? (
+                  <div className="flex flex-col gap-2">
+                    {items.map((t) => (
+                      <TaskCard key={t.id} task={t} onClick={() => openTask(t.id!)} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="px-1 py-2 text-xs text-fg-subtle">비어 있어요</p>
+                )}
+              </section>
+            )
+          })}
+        </div>
+      </div>
 
       {/* Task 가 0개여도 컬럼을 그린다 — 첫 업무를 만들 곳이 있어야 한다 */}
       <DndContext
@@ -369,7 +412,7 @@ export function BoardPage() {
           setDraft(null)
         }}
       >
-        <div className="flex gap-3 overflow-x-auto px-4 py-4 md:px-6">
+        <div className="hidden gap-3 overflow-x-auto px-4 py-4 md:flex md:px-6">
           {columns.map((col) => (
             <Column
               key={col.id}

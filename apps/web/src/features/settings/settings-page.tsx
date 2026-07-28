@@ -32,7 +32,7 @@ export function SettingsPage() {
 
   return (
     <div className="px-4 py-6 md:px-6">
-      <h1 className="text-xl font-semibold">설정</h1>
+      <h1 className="hidden text-xl font-semibold md:block">설정</h1>
 
       <div className="mt-4 flex max-w-2xl flex-col gap-6">
         <ProfileSection />

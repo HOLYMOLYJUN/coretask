@@ -95,7 +95,7 @@ export function DashboardPage() {
   return (
     <div className="px-4 py-6 md:px-6">
       <InstallHint />
-      <h1 className="text-xl font-semibold">대시보드</h1>
+      <h1 className="hidden text-xl font-semibold md:block">대시보드</h1>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <Widget title="오늘 할 일" count={todayTasks.length}>

@@ -115,7 +115,7 @@ export function NotificationsPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 md:px-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">알림</h1>
+        <h1 className="hidden text-xl font-semibold md:block">알림</h1>
         {hasUnread && (
           <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => markAll.mutate()}>
             모두 읽음

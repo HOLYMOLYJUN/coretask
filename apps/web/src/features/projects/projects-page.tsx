@@ -36,7 +36,7 @@ export function ProjectsPage() {
   return (
     <div className="px-4 py-6 md:px-6">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">프로젝트</h1>
+        <h1 className="hidden text-xl font-semibold md:block">프로젝트</h1>
         {me?.isWorkspaceAdmin && (
           <div className="flex gap-2">
             <Button onClick={() => setInviting(true)}>
